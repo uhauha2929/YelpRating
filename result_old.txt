@@ -1,0 +1,52 @@
+
+
+
+h-cnn
+h-cnn-multi
+h-cnn-multi-user
+
+h-gru
+h-bigru
+h-gru-multi 0.559
+h-bigru-multi
+h-gru-multi-user
+h-bigru-multi-user
+
+cnn_gru
+cnn_bigru
+cnn-gru-multi
+cnn-bigru-multi
+cnn-gru-multi-user
+cnn-bigru-multi-user
+cnn_lstm
+cnn-bilstm
+cnn-lstm-multi
+cnn-bilstm-multi
+cnn-lstm-multi-user
+cnn-bilstm-multi-user
+
++glove
+h-cnn
+h-cnn-multi
+h-cnn-multi-user
+
+h-gru
+h-bigru
+h-gru-multi 0.583
+h-bigru-multi 0.616
+h-gru-multi-user 0.619
+h-bigru-multi-user 0.630
+
+cnn_gru
+cnn_bigru
+cnn-gru-multi
+cnn-bigru-multi 0.595
+cnn-gru-multi-user
+cnn-bigru-multi-user 0.600
+cnn_lstm
+cnn-bilstm
+cnn-lstm-multi
+cnn-bilstm-multi
+cnn-lstm-multi-user
+cnn-bilstm-multi-user
+
