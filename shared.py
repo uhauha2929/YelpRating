@@ -5,7 +5,9 @@
 pad = "<pad>"
 unk = "<unk>"
 
-vocab_size = 50000
+vocab_size = 50000 + 2  # for pad and unk
+
+regression = True
 
 emb_dim = 200
 hid_dim = 256

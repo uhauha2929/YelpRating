@@ -9,19 +9,18 @@ import torch
 import torch.nn as nn
 
 from dataset import ProductUserDataset
-from models.cnn_gru import MultiUserHierarchicalCnnBiGRU
 from models.loss import focal_loss
 from shared import *
-from models.h_gru import MultiUserHierarchicalGRU, MultiUserHierarchicalBiGRU
+from models.h_gru import Multi3GruUser
 
 device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
-regression = False
 
-# weight = torch.FloatTensor([0.99, 0.97, 0.94, 0.90, 0.87, 0.84, 0.81, 0.83, 0.86])
 regress_criterion = nn.MSELoss().to(device)
 classify_criterion = nn.CrossEntropyLoss().to(device)
-# classify_criterion = partial(focal_loss, device=device,
-#                              weight=weight)
+
+
+# weight = torch.FloatTensor([0.99, 0.97, 0.94, 0.90, 0.87, 0.84, 0.81, 0.83, 0.86])
+# classify_criterion = partial(focal_loss, device=device, weight=weight)
 
 
 def train(train_loader, model, optimizer):
@@ -29,18 +28,21 @@ def train(train_loader, model, optimizer):
     train_loss = []
     epoch_loss = 0
     bar = tqdm(total=len(train_loader))
-    for b_id, (X, Y, R, U) in enumerate(train_loader, 1):
-        X = X.to(device)
-        Y = Y.to(device)
-        R = R.to(device)
-        U = U.to(device)
+    for b_id, output_dict in enumerate(train_loader, 1):
+        product = output_dict['product'].to(device)
+        product_stars = output_dict['product_stars'].to(device)
+        review_stars = output_dict['review_stars'].to(device)
+        user = output_dict['user'].to(device)
+        sent_lengths = output_dict['sent_length'].to(device)
+        sent_counts = output_dict['sent_count'].to(device)
+
         optimizer.zero_grad()
-        p_stars, r_stars = model(X, U)
+        p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
         if regression:
-            p_loss = regress_criterion(p_stars.squeeze(), Y.squeeze())
+            p_loss = regress_criterion(p_stars.squeeze(), product_stars.squeeze())
         else:
-            p_loss = classify_criterion(p_stars.squeeze(), Y.squeeze())
-        r_loss = regress_criterion(r_stars.squeeze(), R.squeeze())
+            p_loss = classify_criterion(p_stars.squeeze(), product_stars.squeeze())
+        r_loss = regress_criterion(r_stars.squeeze(), review_stars.squeeze())
         loss = p_loss + r_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -59,25 +61,28 @@ def evaluate(model, val_loader):
     correct, total = 0, 0
     pred, target = [], []
     with torch.no_grad():
-        for i, (X, Y, R, U) in enumerate(val_loader):
-            X = X.to(device)
-            Y = Y.to(device)
-            R = R.to(device)
-            U = U.to(device)
-            p_stars, r_stars = model(X, U)
+        for i, output_dict in enumerate(val_loader):
+            product = output_dict['product'].to(device)
+            product_stars = output_dict['product_stars'].to(device)
+            review_stars = output_dict['review_stars'].to(device)
+            user = output_dict['user'].to(device)
+            sent_lengths = output_dict['sent_length'].to(device)
+            sent_counts = output_dict['sent_count'].to(device)
+
+            p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
             if regression:
-                p_loss = regress_criterion(p_stars.squeeze(), Y.squeeze())
+                p_loss = regress_criterion(p_stars.squeeze(), product_stars.squeeze())
             else:
-                p_loss = classify_criterion(p_stars.squeeze(), Y.squeeze())
-            r_loss = regress_criterion(r_stars.squeeze(), R.squeeze())
+                p_loss = classify_criterion(p_stars.squeeze(), product_stars.squeeze())
+            r_loss = regress_criterion(r_stars.squeeze(), review_stars.squeeze())
             loss = p_loss + r_loss
             epoch_loss += loss
             if regression:
                 pred.append(p_stars.cpu().numpy().reshape(-1))
-                target.append(Y.cpu().numpy().reshape(-1))
+                target.append(product_stars.cpu().numpy().reshape(-1))
             else:
-                correct += (torch.max(p_stars, -1)[1].view(-1) == Y.squeeze()).float().sum()
-                total += Y.size(0)
+                correct += (torch.max(p_stars, -1)[1].view(-1) == product_stars.squeeze()).float().sum()
+                total += product_stars.size(0)
     if regression:
         metric = mean_squared_error(np.concatenate(target), np.concatenate(pred))
     else:
@@ -90,19 +95,20 @@ def main():
     train_data = ProductUserDataset('data/old/products_train.txt',
                                     'data/old/reviews_train.txt',
                                     'data/old/vocab.json',
-                                    'data/old/users_feats_scaled.json')
+                                    'data/old/users_feats_scaled.json',
+                                    regress=regression)
 
     val_data = ProductUserDataset('data/old/products_test.txt',
                                   'data/old/reviews_test.txt',
                                   'data/old/vocab.json',
-                                  'data/old/users_feats_scaled.json')
+                                  'data/old/users_feats_scaled.json',
+                                  regress=regression)
 
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    model = MultiUserHierarchicalBiGRU(vocab_size + 2, emb_dim, hid_dim, regression).to(device)
-    # model = MultiUserHierarchicalCnnBiGRU(vocab_size + 2, emb_dim, hid_dim, regress=regression).to(device)
-    model.embedding.weight.data.copy_(torch.Tensor(np.load('data/old/embedding_200.npy')))
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regression).to(device)
+    model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     best_acc = np.Inf if regression else 0
