@@ -11,7 +11,7 @@ import torch.nn as nn
 from dataset import ProductUserDataset
 from models.loss import focal_loss
 from shared import *
-from models.h_gru import Multi3GruUser
+from models.h_gru import Multi3GruUser, Multi2GruMean
 
 device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
@@ -32,17 +32,18 @@ def train(train_loader, model, optimizer):
         product = output_dict['product'].to(device)
         product_stars = output_dict['product_stars'].to(device)
         review_stars = output_dict['review_stars'].to(device)
-        user = output_dict['user'].to(device)
+        # user = output_dict['user'].to(device)
         sent_lengths = output_dict['sent_length'].to(device)
         sent_counts = output_dict['sent_count'].to(device)
 
         optimizer.zero_grad()
-        p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+        # p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+        p_stars, r_stars = model(product, sent_lengths, sent_counts)
         if regression:
-            p_loss = regress_criterion(p_stars.squeeze(), product_stars.squeeze())
+            p_loss = regress_criterion(p_stars, product_stars)
         else:
-            p_loss = classify_criterion(p_stars.squeeze(), product_stars.squeeze())
-        r_loss = regress_criterion(r_stars.squeeze(), review_stars.squeeze())
+            p_loss = classify_criterion(p_stars, product_stars)
+        r_loss = regress_criterion(r_stars, review_stars)
         loss = p_loss + r_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -65,29 +66,29 @@ def evaluate(model, val_loader):
             product = output_dict['product'].to(device)
             product_stars = output_dict['product_stars'].to(device)
             review_stars = output_dict['review_stars'].to(device)
-            user = output_dict['user'].to(device)
+            # user = output_dict['user'].to(device)
             sent_lengths = output_dict['sent_length'].to(device)
             sent_counts = output_dict['sent_count'].to(device)
 
-            p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+            # p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+            p_stars, r_stars = model(product, sent_lengths, sent_counts)
             if regression:
-                p_loss = regress_criterion(p_stars.squeeze(), product_stars.squeeze())
+                p_loss = regress_criterion(p_stars, product_stars)
             else:
-                p_loss = classify_criterion(p_stars.squeeze(), product_stars.squeeze())
-            r_loss = regress_criterion(r_stars.squeeze(), review_stars.squeeze())
+                p_loss = classify_criterion(p_stars, product_stars)
+            r_loss = regress_criterion(r_stars, review_stars)
             loss = p_loss + r_loss
             epoch_loss += loss
             if regression:
                 pred.append(p_stars.cpu().numpy().reshape(-1))
                 target.append(product_stars.cpu().numpy().reshape(-1))
             else:
-                correct += (torch.max(p_stars, -1)[1].view(-1) == product_stars.squeeze()).float().sum()
+                correct += (torch.max(p_stars, -1)[1].view(-1) == product_stars).float().sum()
                 total += product_stars.size(0)
     if regression:
         metric = mean_squared_error(np.concatenate(target), np.concatenate(pred))
     else:
         metric = correct.item() / total
-    model.train()
     return epoch_loss.item() / len(val_loader), metric
 
 
@@ -107,7 +108,9 @@ def main():
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regression).to(device)
+    # model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression).to(device)
+    model = Multi2GruMean(vocab_size, emb_dim, hid_dim).to(device)
+
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
