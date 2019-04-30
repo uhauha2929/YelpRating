@@ -77,7 +77,7 @@ class Multi3GruUser(nn.Module):
                  vocab_size: int,
                  emb_dim: int,
                  hid_dim: int,
-                 dropout=0.2,
+                 dropout=0.5,
                  regress: bool = True):
         super().__init__()
         self._embed = nn.Embedding(vocab_size, emb_dim)

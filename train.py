@@ -1,6 +1,5 @@
-from functools import partial
-
 import numpy as np
+import visdom
 from sklearn.metrics import mean_squared_error
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -9,9 +8,11 @@ import torch
 import torch.nn as nn
 
 from dataset import ProductUserDataset
-from models.loss import focal_loss
 from shared import *
-from models.h_gru import Multi3GruUser, Multi2GruMean
+from models.h_gru import Multi3GruUser
+from functools import partial
+from models.loss import focal_loss
+from visualize.loss import LossPainter, LinePainter
 
 device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
@@ -20,6 +21,7 @@ classify_criterion = nn.CrossEntropyLoss().to(device)
 
 
 # weight = torch.FloatTensor([0.99, 0.97, 0.94, 0.90, 0.87, 0.84, 0.81, 0.83, 0.86])
+# weight = torch.FloatTensor([1.9, 1.8, 1.7, 1.6, 1.5, 1.4, 1.3, 1.4, 1.5])
 # classify_criterion = partial(focal_loss, device=device, weight=weight)
 
 
@@ -32,19 +34,22 @@ def train(train_loader, model, optimizer):
         product = output_dict['product'].to(device)
         product_stars = output_dict['product_stars'].to(device)
         review_stars = output_dict['review_stars'].to(device)
-        # user = output_dict['user'].to(device)
+        user = output_dict['user'].to(device)
         sent_lengths = output_dict['sent_length'].to(device)
         sent_counts = output_dict['sent_count'].to(device)
 
         optimizer.zero_grad()
-        # p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-        p_stars, r_stars = model(product, sent_lengths, sent_counts)
+        p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+        # p_stars, r_stars = model(product, sent_lengths, sent_counts)
         if regression:
             p_loss = regress_criterion(p_stars, product_stars)
         else:
             p_loss = classify_criterion(p_stars, product_stars)
+
         r_loss = regress_criterion(r_stars, review_stars)
+
         loss = p_loss + r_loss
+
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optimizer.step()
@@ -52,6 +57,7 @@ def train(train_loader, model, optimizer):
         bar.update()
         bar.set_description('current loss:{:.4f}'.format(epoch_loss / b_id))
         train_loss.append(epoch_loss / b_id)
+
     bar.close()
     return train_loss
 
@@ -66,18 +72,20 @@ def evaluate(model, val_loader):
             product = output_dict['product'].to(device)
             product_stars = output_dict['product_stars'].to(device)
             review_stars = output_dict['review_stars'].to(device)
-            # user = output_dict['user'].to(device)
+            user = output_dict['user'].to(device)
             sent_lengths = output_dict['sent_length'].to(device)
             sent_counts = output_dict['sent_count'].to(device)
 
-            # p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-            p_stars, r_stars = model(product, sent_lengths, sent_counts)
+            p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
+            # p_stars, r_stars = model(product, sent_lengths, sent_counts)
             if regression:
                 p_loss = regress_criterion(p_stars, product_stars)
             else:
                 p_loss = classify_criterion(p_stars, product_stars)
             r_loss = regress_criterion(r_stars, review_stars)
+
             loss = p_loss + r_loss
+
             epoch_loss += loss
             if regression:
                 pred.append(p_stars.cpu().numpy().reshape(-1))
@@ -108,11 +116,16 @@ def main():
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    # model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression).to(device)
-    model = Multi2GruMean(vocab_size, emb_dim, hid_dim).to(device)
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression).to(device)
+    # model = Multi2GruMean(vocab_size, emb_dim, hid_dim).to(device)
 
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    viz = visdom.Visdom()
+    loss_painter = LossPainter(viz)
+    acc_painter = LinePainter(viz, '准确率')
+    val_painter = LinePainter(viz, '测试损失')
 
     best_acc = np.Inf if regression else 0
     for i in range(1, epoch + 1):
@@ -123,6 +136,10 @@ def main():
             torch.save(model.state_dict(), '{}_{}.pt'.format(model.name, regression))
         print('| epoch: {:02} | train Loss: {:.3f} | val Loss: {:.3f} | val acc: {:.3f}'
               .format(i, train_loss[-1], val_loss, val_acc))
+
+        loss_painter.update_epoch(train_loss)
+        acc_painter.update(val_acc)
+        val_painter.update(val_loss)
 
 
 if __name__ == '__main__':

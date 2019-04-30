@@ -7,7 +7,7 @@ unk = "<unk>"
 
 vocab_size = 50000 + 2  # for pad and unk
 
-regression = True
+regression = False
 
 emb_dim = 200
 hid_dim = 256

@@ -21,8 +21,6 @@ class GruWrapper(nn.Module):
         # inp: [batch, seq_len, emb_dim]
         outputs, h_n = self._gru(inp)
         # outputs: [batch, seq_len, hid_dim]
-        if self._bidirectional:
-            outputs = outputs[:, :, :self._hid_dim] + outputs[:, :, self._hid_dim:]
         if not self._return_last:
             return outputs
         if lengths is None:
@@ -34,4 +32,8 @@ class GruWrapper(nn.Module):
         lengths = torch.LongTensor([i - 1 if i > 0 else 0 for i in lengths])
         if not self._batch_first:
             outputs = outputs.transpose(0, 1)
-        return outputs[torch.arange(inp.size(0)), lengths, :]
+        forward_last = outputs[torch.arange(inp.size(0)), lengths, :]
+        if self._bidirectional:
+            forward_last = forward_last[:, :self._hid_dim]
+            forward_last = forward_last + outputs[:, 0, self._hid_dim:]
+        return forward_last
