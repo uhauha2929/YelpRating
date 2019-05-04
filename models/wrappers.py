@@ -34,6 +34,5 @@ class GruWrapper(nn.Module):
             outputs = outputs.transpose(0, 1)
         forward_last = outputs[torch.arange(inp.size(0)), lengths, :]
         if self._bidirectional:
-            forward_last = forward_last[:, :self._hid_dim]
-            forward_last = forward_last + outputs[:, 0, self._hid_dim:]
+            forward_last = forward_last[:, :self._hid_dim] + forward_last[:, self._hid_dim:]
         return forward_last

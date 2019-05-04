@@ -9,6 +9,61 @@ from torch.utils.data import Dataset
 from shared import *
 
 
+class ProductDataset(Dataset):
+
+    def __init__(self,
+                 products_path: str,
+                 reviews_path: str,
+                 vocab_path: str,
+                 max_length: 200):
+
+        self._max_length = max_length
+
+        with open(vocab_path, 'rt') as v:
+            self._word2id = json.load(v)
+
+        reviews = {}
+        with open(reviews_path, 'rt') as r:
+            for line in r:
+                review = json.loads(line)
+                reviews[review['review_id']] = review
+        self._reviews = reviews
+
+        products = []
+        with open(products_path, 'rt') as p:
+            for line in p:
+                products.append(json.loads(line))
+        self._products = products
+
+        self._stars2label = {1.0: 0, 1.5: 1, 2.0: 2, 2.5: 3, 3.0: 4,
+                             3.5: 5, 4.0: 6, 4.5: 7, 5.0: 8}
+
+    def __len__(self):
+        return len(self._products)
+
+    def __getitem__(self, index):
+        product = self._products[index]
+        review_ids = product['review_ids']
+
+        word_id_list = []
+        for r_id in review_ids:
+            review = self._reviews[r_id]
+            for word in review['text'].split():
+                if word in self._word2id:
+                    if len(word_id_list) == self._max_length:
+                        break
+                    word_id_list.append(self._word2id[word])
+
+            if len(word_id_list) == self._max_length:
+                break
+
+        product_stars = torch.tensor(self._stars2label[product['stars']], dtype=torch.long)
+
+        length = torch.tensor(len(word_id_list), dtype=torch.long)
+
+        return torch.LongTensor(word_id_list + [0] * (self._max_length - len(word_id_list))), product_stars, length
+
+
 class ProductUserDataset(Dataset):
     def __init__(self,
                  products_path: str,

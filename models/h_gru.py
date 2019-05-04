@@ -78,8 +78,10 @@ class Multi3GruUser(nn.Module):
                  emb_dim: int,
                  hid_dim: int,
                  dropout=0.5,
-                 regress: bool = True):
+                 regress: bool = True,
+                 add_user=True):
         super().__init__()
+        self._add_user = add_user
         self._embed = nn.Embedding(vocab_size, emb_dim)
         self._w_rnn = GruWrapper(nn.GRU(emb_dim, hid_dim,
                                         batch_first=True,
@@ -89,14 +91,14 @@ class Multi3GruUser(nn.Module):
                                         batch_first=True,
                                         bidirectional=True),
                                  return_last=True)
-        self._r_rnn = GruWrapper(nn.GRU(hid_dim + 20, hid_dim,
+        self._r_rnn = GruWrapper(nn.GRU(hid_dim + 20 if add_user else hid_dim, hid_dim,
                                         batch_first=True,
                                         bidirectional=True),
                                  return_last=True)
         self._dropout = nn.Dropout(p=dropout)
 
         self._r_fc = nn.Sequential(
-            nn.Linear(hid_dim + 20, hid_dim // 2),
+            nn.Linear(hid_dim + 20 if add_user else hid_dim, hid_dim // 2),
             nn.SELU(),
             self._dropout,
             nn.Linear(hid_dim // 2, 1)
@@ -127,6 +129,7 @@ class Multi3GruUser(nn.Module):
             r_list = []
             for j, r in enumerate(p):
                 # [20, 30, E]
+                # TODO 不加长度似乎效果更好？
                 h_n = self._w_rnn(r, sent_lengths[i, j])
                 # [20, H]
                 r_list.append(h_n.unsqueeze(0))
@@ -139,7 +142,8 @@ class Multi3GruUser(nn.Module):
 
         p_batch = torch.cat(p_list, dim=0)
         # [B, 10, H]
-        p_batch = torch.cat([p_batch, F.normalize(user_feats)], -1)
+        if self._add_user:
+            p_batch = torch.cat([p_batch, F.normalize(user_feats)], -1)
         # [B, 10, H+F]
         r_stars = self._r_fc(p_batch).squeeze()
         # [B, 10]

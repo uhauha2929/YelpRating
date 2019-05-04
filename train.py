@@ -1,6 +1,6 @@
 import numpy as np
 import visdom
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, precision_recall_fscore_support, accuracy_score
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -40,15 +40,15 @@ def train(train_loader, model, optimizer):
 
         optimizer.zero_grad()
         p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-        # p_stars, r_stars = model(product, sent_lengths, sent_counts)
         if regression:
             p_loss = regress_criterion(p_stars, product_stars)
         else:
             p_loss = classify_criterion(p_stars, product_stars)
 
         r_loss = regress_criterion(r_stars, review_stars)
-
         loss = p_loss + r_loss
+
+        # loss = p_loss
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -65,7 +65,6 @@ def train(train_loader, model, optimizer):
 def evaluate(model, val_loader):
     model.eval()
     epoch_loss = 0
-    correct, total = 0, 0
     pred, target = [], []
     with torch.no_grad():
         for i, output_dict in enumerate(val_loader):
@@ -77,26 +76,32 @@ def evaluate(model, val_loader):
             sent_counts = output_dict['sent_count'].to(device)
 
             p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-            # p_stars, r_stars = model(product, sent_lengths, sent_counts)
             if regression:
                 p_loss = regress_criterion(p_stars, product_stars)
             else:
                 p_loss = classify_criterion(p_stars, product_stars)
-            r_loss = regress_criterion(r_stars, review_stars)
 
+            r_loss = regress_criterion(r_stars, review_stars)
             loss = p_loss + r_loss
 
+            # loss = p_loss
+
             epoch_loss += loss
-            if regression:
-                pred.append(p_stars.cpu().numpy().reshape(-1))
-                target.append(product_stars.cpu().numpy().reshape(-1))
-            else:
-                correct += (torch.max(p_stars, -1)[1].view(-1) == product_stars).float().sum()
-                total += product_stars.size(0)
+
+            pred.append(p_stars.cpu().numpy().reshape(-1))
+            target.append(product_stars.cpu().numpy().reshape(-1))
+
+    metric = {}
+    y_true, y_pred = np.concatenate(target), np.concatenate(pred)
+    precision, recall, fscore, _ = precision_recall_fscore_support(y_true, y_pred, average='weighted')
+    metric['acc'] = accuracy_score(y_true, y_pred)
+    metric['precision'] = precision
+    metric['recall'] = recall
+    metric['fscore'] = fscore
+
     if regression:
-        metric = mean_squared_error(np.concatenate(target), np.concatenate(pred))
-    else:
-        metric = correct.item() / total
+        metric['mse'] = mean_squared_error(np.concatenate(target), np.concatenate(pred))
+
     return epoch_loss.item() / len(val_loader), metric
 
 
@@ -116,30 +121,27 @@ def main():
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression).to(device)
-    # model = Multi2GruMean(vocab_size, emb_dim, hid_dim).to(device)
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=False).to(device)
 
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-    viz = visdom.Visdom()
-    loss_painter = LossPainter(viz)
-    acc_painter = LinePainter(viz, '准确率')
-    val_painter = LinePainter(viz, '测试损失')
+    # viz = visdom.Visdom()
+    # loss_painter = LossPainter(viz)
+    # acc_painter = LinePainter(viz, '准确率')
+    # val_painter = LinePainter(viz, '测试损失')
 
-    best_acc = np.Inf if regression else 0
     for i in range(1, epoch + 1):
         train_loss = train(train_loader, model, optimizer)
-        val_loss, val_acc = evaluate(model, val_loader)
-        if val_acc < best_acc if regression else val_acc > best_acc:
-            best_acc = val_acc
-            torch.save(model.state_dict(), '{}_{}.pt'.format(model.name, regression))
-        print('| epoch: {:02} | train Loss: {:.3f} | val Loss: {:.3f} | val acc: {:.3f}'
-              .format(i, train_loss[-1], val_loss, val_acc))
+        val_loss, metric = evaluate(model, val_loader)
 
-        loss_painter.update_epoch(train_loss)
-        acc_painter.update(val_acc)
-        val_painter.update(val_loss)
+        print('| epoch: {:02} | train Loss: {:.3f} | val Loss: {:.3f}'
+              .format(i, train_loss[-1], val_loss))
+        print(metric)
+
+        # loss_painter.update_epoch(train_loss)
+        # acc_painter.update(val_acc)
+        # val_painter.update(val_loss)
 
 
 if __name__ == '__main__':

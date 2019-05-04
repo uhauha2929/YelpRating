@@ -12,8 +12,8 @@ regression = False
 emb_dim = 200
 hid_dim = 256
 
-grad_clip = 10
+grad_clip = 5
 learning_rate = 1e-3
 
-epoch = 50
+epoch = 20
 batch_size = 32
