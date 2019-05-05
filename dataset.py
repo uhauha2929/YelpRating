@@ -9,6 +9,25 @@ from torch.utils.data import Dataset
 from shared import *
 
 
+def collate_fn(data):
+    def merge(sequences):
+        length = torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
+        padded_seqs = torch.zeros(len(sequences), max(length), dtype=torch.long)
+        for i, seq in enumerate(sequences):
+            end = length[i]
+            padded_seqs[i, :end] = seq[:end]
+        return padded_seqs, length
+
+    # sort a list by sequence length (descending order) to use pack_padded_sequence
+    data.sort(key=lambda x: len(x[0]), reverse=True)
+
+    seqs, stars = zip(*data)
+    # merge sequences (from tuple of 1D tensor to 2D tensor)
+    seqs, length = merge(seqs)
+    stars = torch.LongTensor(stars).squeeze()
+    return seqs, length, stars
+
+
 class ProductDataset(Dataset):
 
     def __init__(self,
@@ -59,9 +78,7 @@ class ProductDataset(Dataset):
 
         product_stars = torch.tensor(self._stars2label[product['stars']], dtype=torch.long)
 
-        length = torch.tensor(len(word_id_list), dtype=torch.long)
-
-        return torch.LongTensor(word_id_list + [0] * (self._max_length - len(word_id_list))), product_stars, length
+        return torch.LongTensor(word_id_list), product_stars
 
 
 class ProductUserDataset(Dataset):

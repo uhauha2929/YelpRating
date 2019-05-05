@@ -15,5 +15,5 @@ hid_dim = 256
 grad_clip = 5
 learning_rate = 1e-3
 
-epoch = 20
+epoch = 50
 batch_size = 32

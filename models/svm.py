@@ -60,7 +60,7 @@ def main():
     X_test = vectorizer.transform(X_test)
     print(X_train.shape, X_test.shape)
 
-    # clf = LogisticRegression(class_weight='balanced')
+    # clf = LogisticRegression(solver='sag', class_weight='balanced')
     clf = SVC(kernel='linear', class_weight='balanced')
     clf.fit(X_train, y_train)
     y_pred = clf.predict(X_test)

@@ -4,15 +4,16 @@
 from pprint import pprint
 
 import numpy as np
-from sklearn.metrics import mean_squared_error, precision_recall_fscore_support, accuracy_score
+from sklearn.metrics import precision_recall_fscore_support
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 import torch
 import torch.nn as nn
 
-from dataset import ProductDataset
-from models.gru import SimpleGRU
+from dataset import ProductDataset, collate_fn
+from models.cnn import SimpleCNN
+from models.rnn import SimpleRNN
 from shared import *
 
 device = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
@@ -25,7 +26,7 @@ def train(train_loader, model, optimizer):
     train_loss = []
     epoch_loss = 0
     bar = tqdm(total=len(train_loader))
-    for b_id, (product, product_stars, lengths) in enumerate(train_loader, 1):
+    for b_id, (product, lengths, product_stars) in enumerate(train_loader, 1):
         product = product.to(device)
         product_stars = product_stars.to(device)
         optimizer.zero_grad()
@@ -49,7 +50,7 @@ def evaluate(model, val_loader):
     epoch_loss = 0
     pred, target = [], []
     with torch.no_grad():
-        for b_id, (product, product_stars, lengths) in enumerate(val_loader, 1):
+        for b_id, (product, lengths, product_stars) in enumerate(val_loader, 1):
             product = product.to(device)
             product_stars = product_stars.to(device)
 
@@ -63,7 +64,7 @@ def evaluate(model, val_loader):
         metric = {}
         y_true, y_pred = np.concatenate(target), np.concatenate(pred)
         precision, recall, fscore, _ = precision_recall_fscore_support(y_true, y_pred, average='weighted')
-        metric['acc'] = accuracy_score(y_true, y_pred)
+        metric['acc'] = (y_true == y_pred).sum() / len(y_true)
         metric['precision'] = precision
         metric['recall'] = recall
         metric['fscore'] = fscore
@@ -80,10 +81,11 @@ def main():
                               'data/old/reviews_test.txt',
                               'data/old/vocab.json', max_length=500)
 
-    train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
-    val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
+    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, collate_fn=collate_fn)
+    val_loader = DataLoader(dataset=val_data, batch_size=batch_size, collate_fn=collate_fn)
 
-    model = SimpleGRU(vocab_size, emb_dim, hid_dim).to(device)
+    # model = SimpleRNN(vocab_size, emb_dim, hid_dim).to(device)
+    model = SimpleCNN(vocab_size, emb_dim, hid_dim).to(device)
 
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
