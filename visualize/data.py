@@ -49,7 +49,7 @@ def plot_accuracy(viz: visdom.Visdom):
         opts={
             'dash': np.array(['solid', 'dash', 'dashdot']),
             'title': '准确率比较',
-            'legend': ['h_bigru_multi_user', 'h_bigru_multi', 'h_bigru'],
+            'legend': ['H-GRU-Multi-User', 'H-GRU-Multi', 'H-GRU'],
             'xlabel': 'epoch',
             'ylabel': 'accuracy',
             'width': 500,

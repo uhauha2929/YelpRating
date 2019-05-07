@@ -46,10 +46,10 @@ def train(train_loader, model, optimizer):
         else:
             p_loss = classify_criterion(p_stars, product_stars)
 
-        # r_loss = regress_criterion(r_stars, review_stars)
-        # loss = p_loss + r_loss
+        r_loss = regress_criterion(r_stars, review_stars)
+        loss = p_loss + r_loss
 
-        loss = p_loss
+        # loss = p_loss
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -82,10 +82,10 @@ def evaluate(model, val_loader):
             else:
                 p_loss = classify_criterion(p_stars, product_stars)
 
-            # r_loss = regress_criterion(r_stars, review_stars)
-            # loss = p_loss + r_loss
+            r_loss = regress_criterion(r_stars, review_stars)
+            loss = p_loss + r_loss
 
-            loss = p_loss
+            # loss = p_loss
 
             epoch_loss += loss
 

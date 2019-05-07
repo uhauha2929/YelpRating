@@ -75,17 +75,17 @@ def evaluate(model, val_loader):
 def main():
     train_data = ProductDataset('data/old/products_train.txt',
                                 'data/old/reviews_train.txt',
-                                'data/old/vocab.json', max_length=500)
+                                'data/old/vocab.json', max_length=1000)
 
     val_data = ProductDataset('data/old/products_test.txt',
                               'data/old/reviews_test.txt',
-                              'data/old/vocab.json', max_length=500)
+                              'data/old/vocab.json', max_length=1000)
 
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, collate_fn=collate_fn)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size, collate_fn=collate_fn)
 
-    # model = SimpleRNN(vocab_size, emb_dim, hid_dim).to(device)
-    model = SimpleCNN(vocab_size, emb_dim, hid_dim).to(device)
+    model = SimpleRNN(vocab_size, emb_dim, hid_dim).to(device)
+    # model = SimpleCNN(vocab_size, emb_dim, hid_dim).to(device)
 
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)

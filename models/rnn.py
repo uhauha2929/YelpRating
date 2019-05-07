@@ -18,9 +18,9 @@ class SimpleRNN(nn.Module):
         # self.rnn = GruWrapper(gru, return_last=True)
         self.rnn = nn.LSTM(embed_dim, hid_dim, batch_first=True, bidirectional=True)
         self.fc = nn.Sequential(
-            nn.Linear(hid_dim, hid_dim // 2),
-            nn.ELU(),
-            nn.Linear(hid_dim // 2, 1 if regress else 9)
+            nn.Linear(2 * hid_dim, hid_dim),
+            nn.LeakyReLU(),
+            nn.Linear(hid_dim, 1 if regress else 9)
         )
 
     def load_embed_matrix(self, matrix: torch.Tensor):
@@ -32,5 +32,5 @@ class SimpleRNN(nn.Module):
         inputs = self.embedding(inputs)
         packed_seq = pack_padded_sequence(inputs, lengths, batch_first=True)
         _, (h_n, _) = self.rnn(packed_seq)
-        h_n = h_n[0] + h_n[1]
+        h_n = torch.cat([h_n[0], h_n[1]], -1)
         return F.elu(self.fc(h_n)).squeeze()

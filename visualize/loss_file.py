@@ -10,7 +10,7 @@ def get_loss_from_file(file_path):
     pattern = re.compile(r'\d+\.\d\d\d\d')
     loss_list = []
     with open(file_path, 'rt') as f:
-        for line in f:
+        for i, line in enumerate(f):
             loss = pattern.findall(line)
             loss = map(float, loss)
             loss_list.extend(loss)
@@ -20,16 +20,16 @@ def get_loss_from_file(file_path):
 
 
 def main():
-    h_bigru = get_loss_from_file('h_gru.out')
-    h_bigru_multi = get_loss_from_file('h_gru_multi.out')
-    h_bigru_multi_user = get_loss_from_file('h_gru_multi_user.out')
+    h_bigru = get_loss_from_file('h_gru.out')[:2000]
+    h_bigru_multi = get_loss_from_file('h_gru_multi.out')[:2000]
+    h_bigru_multi_user = get_loss_from_file('h_gru_multi_user.out')[:2000]
 
     viz = visdom.Visdom()
     viz.line(
         X=np.column_stack((
-            np.arange(0, 5020),
-            np.arange(0, 5020),
-            np.arange(0, 5020)
+            np.arange(0, 2000),
+            np.arange(0, 2000),
+            np.arange(0, 2000)
         )),
         Y=np.column_stack((
             np.array(h_bigru_multi_user),
@@ -39,7 +39,7 @@ def main():
         opts={
             'dash': np.array(['solid', 'dash', 'dashdot']),
             'title': '训练损失',
-            'legend': ['h_bigru_multi_user', 'h_bigru_multi', 'h_bigru'],
+            'legend': ['H-GRU-Multi-User', 'H-GRU-Multi', 'H-GRU'],
             'xlabel': 'batch',
             'ylabel': 'loss',
             'width': 500,
