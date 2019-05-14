@@ -3,34 +3,29 @@
 # @Author  : uhauha2929
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 
-
-def plot_confusion_matrix(mat, labels):
-    plt.imshow(mat, interpolation='nearest', cmap='cividis')
-    plt.title('Confusion Matrix')
-    plt.colorbar()
-    ticks = np.arange(len(labels))
-    plt.xticks(ticks, labels)
-    plt.yticks(ticks, labels)
-    plt.ylabel('True Label')
-    plt.xlabel('Predicted Label')
-    plt.savefig('Confusion Matrix')
-    plt.show()
+sns.set()
 
 
 if __name__ == '__main__':
     confusion_mat = np.array(
-        [[2, 6, 1, 0, 0, 0, 0, 0, 0],
-         [0, 19, 16, 2, 0, 0, 0, 0, 0],
-         [0, 4, 37, 16, 5, 0, 1, 0, 0],
-         [0, 0, 22, 53, 29, 3, 0, 0, 0],
-         [0, 0, 1, 31, 71, 24, 7, 0, 0],
-         [0, 0, 0, 1, 20, 00, 37, 3, 0],
-         [0, 0, 0, 0, 3, 36, 129, 34, 0],
-         [0, 0, 0, 0, 0, 1, 36, 112, 9],
-         [0, 0, 0, 0, 0, 1, 1, 25, 108]]
+        [[5, 4, 0, 0, 0, 0, 0, 0, 0],
+         [1, 18, 17, 1, 0, 0, 0, 0, 0],
+         [0, 6, 38, 14, 4, 1, 0, 0, 0],
+         [0, 0, 28, 49, 28, 1, 1, 0, 0],
+         [0, 0, 2, 27, 61, 35, 9, 0, 0],
+         [0, 0, 0, 1, 18, 101, 39, 2, 0],
+         [0, 0, 0, 1, 2, 32, 130, 36, 1],
+         [0, 0, 0, 0, 0, 1, 25, 120, 12],
+         [0, 0, 0, 0, 0, 0, 1, 17, 117]]
     )
+
     labels = [1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5]
-    confusion_mat = confusion_mat.astype('float')
-    confusion_mat /= confusion_mat.sum(-1).reshape((-1, 1)).repeat(9, -1)
-    plot_confusion_matrix(confusion_mat, labels)
+    sns.heatmap(confusion_mat, square=True, fmt='d', annot=True, cmap='cividis',
+                xticklabels=labels, yticklabels=labels)
+    plt.ylabel('True Label')
+    plt.xlabel('Predicted Label')
+    plt.savefig('Confusion Matrix')
+    plt.title('Confusion Matrix')
+    plt.show()

@@ -122,8 +122,8 @@ def main():
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    # model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=True).to(device)
-    model = CnnMulti2GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=False).to(device)
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=True).to(device)
+    # model = CnnMulti2GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=False).to(device)
 
     model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -133,7 +133,7 @@ def main():
     # acc_painter = LinePainter(viz, '准确率')
     # val_painter = LinePainter(viz, '测试损失')
 
-    # best_acc = np.inf if regression else -np.inf
+    best_acc = np.inf if regression else -np.inf
 
     for i in range(1, epoch + 1):
         train_loss = train(train_loader, model, optimizer)
@@ -143,14 +143,14 @@ def main():
               .format(i, train_loss[-1], val_loss))
         print(metric)
 
-        # if regression:
-        #     if metric['mse'] < best_acc:
-        #         best_acc = metric['mse']
-        #         torch.save(model.state_dict(), 'best_regression.pt')
-        # else:
-        #     if metric['acc'] > best_acc:
-        #         best_acc = metric['acc']
-        #         torch.save(model.state_dict(), 'best_classification.pt')
+        if regression:
+            if metric['mse'] < best_acc:
+                best_acc = metric['mse']
+                torch.save(model.state_dict(), 'best_regression.pt')
+        else:
+            if metric['acc'] > best_acc:
+                best_acc = metric['acc']
+                torch.save(model.state_dict(), 'best_classification.pt')
 
         # loss_painter.update_epoch(train_loss)
         # acc_painter.update(val_acc)

@@ -111,6 +111,8 @@ class Multi3GruUser(nn.Module):
             nn.Linear(hid_dim // 2, 1 if regress else 9)
         )
 
+        self.user_feats_weights = nn.Parameter(torch.ones(20))
+
     def load_embed_matrix(self, matrix: torch.Tensor):
         self._embed.weight.data.copy_(matrix)
 
@@ -145,7 +147,7 @@ class Multi3GruUser(nn.Module):
         p_batch = torch.cat(p_list, dim=0)
         # [B, 10, H]
         if self._add_user:
-            p_batch = torch.cat([p_batch, F.normalize(user_feats)], -1)
+            p_batch = torch.cat([p_batch, F.normalize(user_feats) * self.user_feats_weights], -1)
         # [B, 10, H+F]
         r_stars = self._r_fc(p_batch).squeeze()
         # [B, 10]

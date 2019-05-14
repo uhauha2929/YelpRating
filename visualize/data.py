@@ -14,7 +14,6 @@ def plot_data_count(viz: visdom.Visdom,
     n_class = len(train_count)
     train_count = np.array(train_count).reshape((n_class, 1))
     test_count = np.array(test_count).reshape((n_class, 1))
-    viz.bar(X=np.random.rand(n_class))
     viz.bar(
         X=np.concatenate((train_count, test_count), axis=-1),
         opts={
