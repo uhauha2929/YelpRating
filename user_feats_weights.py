@@ -14,6 +14,7 @@ if __name__ == '__main__':
     model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=True).to(device)
     model.load_state_dict(torch.load('best_classification.pt'))
 
+    print(model.user_feats_weights)
     user_feats_weights = F.softmax(model.user_feats_weights, -1).detach().cpu().numpy()
     print(user_feats_weights)
     viz = visdom.Visdom()
