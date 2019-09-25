@@ -54,9 +54,6 @@ class ProductDataset(Dataset):
                 products.append(json.loads(line))
         self._products = products
 
-        self._stars2label = {1.0: 0, 1.5: 1, 2.0: 2, 2.5: 3, 3.0: 4,
-                             3.5: 5, 4.0: 6, 4.5: 7, 5.0: 8}
-
     def __len__(self):
         return len(self._products)
 
@@ -68,6 +65,7 @@ class ProductDataset(Dataset):
         for r_id in review_ids:
             review = self._reviews[r_id]
             for word in review['text'].split():
+                word = word.lower()
                 if word in self._word2id:
                     if len(word_id_list) == self._max_length:
                         break
@@ -76,7 +74,7 @@ class ProductDataset(Dataset):
             if len(word_id_list) == self._max_length:
                 break
 
-        product_stars = torch.tensor(self._stars2label[product['stars']], dtype=torch.long)
+        product_stars = torch.tensor(int((product['stars'] - 1) / 0.5), dtype=torch.long)
 
         return torch.LongTensor(word_id_list), product_stars
 
@@ -89,13 +87,11 @@ class ProductUserDataset(Dataset):
                  user_feats_path: str,
                  num_reviews: int = 10,  # 每个产品评论个数
                  num_sentences: int = 20,  # 每个评论句子个数
-                 max_sentence_length: int = 30,
-                 regress: bool = False):  # 每个句子长度
+                 max_sentence_length: int = 30):  # 每个句子长度
 
         self._num_reviews = num_reviews
         self._num_sentences = num_sentences
         self._max_sentence_length = max_sentence_length
-        self._regress = regress
 
         with open(vocab_path, 'rt') as v:
             self._word2id = json.load(v)
@@ -115,9 +111,6 @@ class ProductUserDataset(Dataset):
 
         with open(user_feats_path, 'rt') as u:
             self._user_feats = json.load(u)
-
-        self._stars2label = {1.0: 0, 1.5: 1, 2.0: 2, 2.5: 3, 3.0: 4,
-                             3.5: 5, 4.0: 6, 4.5: 7, 5.0: 8}
 
     def __getitem__(self, index):
         product_tensor = torch.zeros([self._num_reviews,
@@ -154,10 +147,7 @@ class ProductUserDataset(Dataset):
 
         review_user_feats = torch.FloatTensor(review_user_feats)
 
-        if self._regress:
-            product_stars = product_reviews_stars.mean()
-        else:
-            product_stars = torch.tensor(self._stars2label[product['stars']], dtype=torch.long)
+        product_stars = torch.tensor(int((product['stars'] - 1) / 0.5), dtype=torch.long)
 
         output_dict = {"product": product_tensor,
                        "product_stars": product_stars,

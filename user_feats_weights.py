@@ -11,7 +11,7 @@ from shared import *
 device = torch.device('cuda:1' if torch.cuda.is_available() else 'cpu')
 
 if __name__ == '__main__':
-    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=True).to(device)
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, add_user=True).to(device)
     model.load_state_dict(torch.load('best_classification.pt'))
 
     print(model.user_feats_weights)

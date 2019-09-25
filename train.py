@@ -15,7 +15,7 @@ from functools import partial
 from models.loss import focal_loss
 from visualize.loss import LossPainter, LinePainter
 
-device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
+device = torch.device('cuda:5' if torch.cuda.is_available() else 'cpu')
 
 regress_criterion = nn.MSELoss().to(device)
 classify_criterion = nn.CrossEntropyLoss().to(device)
@@ -41,15 +41,10 @@ def train(train_loader, model, optimizer):
 
         optimizer.zero_grad()
         p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-        if regression:
-            p_loss = regress_criterion(p_stars, product_stars)
-        else:
-            p_loss = classify_criterion(p_stars, product_stars)
+        p_loss = classify_criterion(p_stars, product_stars)
 
         r_loss = regress_criterion(r_stars, review_stars)
         loss = p_loss + r_loss
-
-        # loss = p_loss
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
@@ -77,15 +72,10 @@ def evaluate(model, val_loader):
             sent_counts = output_dict['sent_count'].to(device)
 
             p_stars, r_stars = model(product, sent_lengths, sent_counts, user)
-            if regression:
-                p_loss = regress_criterion(p_stars, product_stars)
-            else:
-                p_loss = classify_criterion(p_stars, product_stars)
+            p_loss = classify_criterion(p_stars, product_stars)
 
             r_loss = regress_criterion(r_stars, review_stars)
             loss = p_loss + r_loss
-
-            # loss = p_loss
 
             epoch_loss += loss
 
@@ -100,32 +90,27 @@ def evaluate(model, val_loader):
     metric['recall'] = recall
     metric['fscore'] = fscore
 
-    if regression:
-        metric['mse'] = mean_squared_error(np.concatenate(target), np.concatenate(pred))
-
     return epoch_loss.item() / len(val_loader), metric
 
 
 def main():
-    train_data = ProductUserDataset('data/old/products_train.txt',
-                                    'data/old/reviews_train.txt',
-                                    'data/old/vocab.json',
-                                    'data/old/users_feats_scaled.json',
-                                    regress=regression)
+    train_data = ProductUserDataset('data/products_train.txt',
+                                    'data/reviews_train.txt',
+                                    'data/vocab.json',
+                                    'data/users_feats.json')
 
-    val_data = ProductUserDataset('data/old/products_test.txt',
-                                  'data/old/reviews_test.txt',
-                                  'data/old/vocab.json',
-                                  'data/old/users_feats_scaled.json',
-                                  regress=regression)
+    val_data = ProductUserDataset('data/products_test.txt',
+                                  'data/reviews_test.txt',
+                                  'data/vocab.json',
+                                  'data/users_feats.json')
 
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=batch_size)
 
-    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=True).to(device)
+    model = Multi3GruUser(vocab_size, emb_dim, hid_dim, add_user=True).to(device)
     # model = CnnMulti2GruUser(vocab_size, emb_dim, hid_dim, regress=regression, add_user=False).to(device)
 
-    model.load_embed_matrix(torch.Tensor(np.load('data/old/embedding_200.npy')))
+    model.load_embed_matrix(torch.Tensor(np.load('data/embedding_200.npy')))
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # viz = visdom.Visdom()
@@ -133,7 +118,7 @@ def main():
     # acc_painter = LinePainter(viz, '准确率')
     # val_painter = LinePainter(viz, '测试损失')
 
-    best_acc = np.inf if regression else -np.inf
+    best_acc = -np.inf
 
     for i in range(1, epoch + 1):
         train_loss = train(train_loader, model, optimizer)
@@ -143,14 +128,9 @@ def main():
               .format(i, train_loss[-1], val_loss))
         print(metric)
 
-        if regression:
-            if metric['mse'] < best_acc:
-                best_acc = metric['mse']
-                torch.save(model.state_dict(), 'best_regression.pt')
-        else:
-            if metric['acc'] > best_acc:
-                best_acc = metric['acc']
-                torch.save(model.state_dict(), 'best_classification.pt')
+        if metric['acc'] > best_acc:
+            best_acc = metric['acc']
+            torch.save(model.state_dict(), 'best.pt')
 
         # loss_painter.update_epoch(train_loss)
         # acc_painter.update(val_acc)

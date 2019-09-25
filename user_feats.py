@@ -8,13 +8,13 @@ from sklearn import preprocessing
 
 def main():
     user_ids = set()
-    with open('data/old/reviews_train.txt', 'rt') as r:
+    with open('data/reviews_train.txt', 'rt') as r:
         for line in r:
             review = json.loads(line)
             user_ids.add(review['user_id'])
     print(len(user_ids))
 
-    with open('data/old/reviews_test.txt', 'rt') as r:
+    with open('data/reviews_test.txt', 'rt') as r:
         for line in r:
             review = json.loads(line)
             user_ids.add(review['user_id'])
@@ -22,7 +22,7 @@ def main():
 
     users_feats = []
     user_ids_list = []
-    with open('/home/yzhao/data/dataset/user.json', 'rt') as u:
+    with open('/home/yzhao/data/Yelp/user.json', 'rt') as u:
         for line in u:
             user = json.loads(line)
             feats = []
@@ -59,7 +59,7 @@ def main():
 
     user_id_feat_dict = dict(zip(user_ids_list, scaled_users_feats.tolist()))
 
-    with open('data/old/users_feats.json', 'wt') as u:
+    with open('data/users_feats.json', 'wt') as u:
         json.dump(user_id_feat_dict, u)
 
 
