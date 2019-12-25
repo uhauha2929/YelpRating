@@ -6,10 +6,10 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from build_vocab import Vocabulary, UNKNOWN, PADDING
+from build_vocab import Vocabulary, UNKNOWN_CHAR, PADDING_CHAR
 
 
-class ProductUserDataset(Dataset):
+class ProductUserDatasetChar(Dataset):
     def __init__(self,
                  vocab: Vocabulary,
                  products_path: str,
@@ -17,13 +17,18 @@ class ProductUserDataset(Dataset):
                  user_feats_path: str,
                  num_reviews: int = 10,
                  num_sentences: int = 20,
-                 max_sequence_length: int = 30):
+                 max_sequence_length: int = 30,
+                 max_word_length: int = 50,
+                 max_char_size: int = 80):
 
         self.num_reviews = num_reviews
         self.num_sentences = num_sentences
         self.max_sequence_length = max_sequence_length
+        self.max_word_length = max_word_length
 
         self.vocab = vocab
+        self.char_index = vocab.get_char_index(max_char_size)
+        self.char_size = len(self.char_index)
 
         self.review_dict = {}
         with open(reviews_path, 'rt') as r:
@@ -42,8 +47,9 @@ class ProductUserDataset(Dataset):
     def __getitem__(self, index):
         product_tensor = torch.full([self.num_reviews,
                                      self.num_sentences,
-                                     self.max_sequence_length],
-                                    self.vocab.word_index[PADDING],
+                                     self.max_sequence_length,
+                                     self.max_word_length],
+                                    self.char_index[PADDING_CHAR],
                                     dtype=torch.long)
         product = self.products[index]
         review_ids = product['review_ids']
@@ -66,7 +72,9 @@ class ProductUserDataset(Dataset):
                 words = [token.text for token in tokens]
                 words = words[:self.max_sequence_length]
                 for k, word in enumerate(words):
-                    product_tensor[i, j, k] = self.vocab.word_index.get(word, self.vocab.word_index[UNKNOWN])
+                    for l, char in enumerate(word[:self.max_word_length]):
+                        product_tensor[i, j, k, l] = self.char_index \
+                            .get(char, self.char_index[UNKNOWN_CHAR])  # unk
 
         user_features = torch.FloatTensor(user_features)
 
@@ -89,4 +97,5 @@ if __name__ == '__main__':
     dataset = ProductUserDataset(vocab, './data/products.txt',
                                  './data/reviews_train.txt',
                                  './data/users_feats.json')
-    print(iter(dataset).__next__())
+    output_dict = iter(dataset).__next__()
+    print(output_dict['product'].size())

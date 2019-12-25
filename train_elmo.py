@@ -6,14 +6,18 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from dataset import ProductUserDataset
-from models.hierarchical import HierarchicalJointModel
+from dataset_elmo import ProductUserDatasetChar
 from build_vocab import Vocabulary
+from models.hierarchical_elmo import HierarchicalJointModelELMo
+
 
 class Configuration(object):
 
     def __init__(self):
-        self.embedding_size = 200
+        # ELMo
+        self.options_file = '/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_options.json'
+        self.weight_file = '/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5'
+
         self.hidden_size = 256
         self.learning_rate = 1e-3
 
@@ -91,22 +95,22 @@ def evaluate(model, val_loader):
 def main():
     p = Configuration()
     vocab = Vocabulary()
-    train_data = ProductUserDataset(vocab,
-                                    'data/products_train.txt',
-                                    'data/reviews_train.txt',
-                                    'data/users_feats.json')
+    train_data = ProductUserDatasetChar(vocab,
+                                        'data/products_train.txt',
+                                        'data/reviews_train.txt',
+                                        'data/users_feats.json')
 
-    val_data = ProductUserDataset(vocab,
-                                  'data/products_test.txt',
-                                  'data/reviews_test.txt',
-                                  'data/users_feats.json')
+    val_data = ProductUserDatasetChar(vocab,
+                                      'data/products_test.txt',
+                                      'data/reviews_test.txt',
+                                      'data/users_feats.json')
 
     train_loader = DataLoader(dataset=train_data, batch_size=p.batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=p.batch_size)
 
-    model = HierarchicalJointModel(vocab.vocab_size,
-                                   p.embedding_size,
-                                   p.hidden_size).to(DEVICE)
+    model = HierarchicalJointModelELMo(vocab.vocab_size,
+                                       p.options_file, p.weight_file,
+                                       p.hidden_size).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=p.learning_rate)
 
