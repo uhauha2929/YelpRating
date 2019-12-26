@@ -43,9 +43,6 @@ class Vocabulary(object):
 
     @DeprecationWarning
     def get_char_index(self, max_char_size: int = 100):
-        """
-        elmo use its own char index
-        """
         if self.word_index is None:
             raise Exception('vocab is empty!')
         char_counter = Counter()

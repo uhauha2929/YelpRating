@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from allennlp.modules.seq2vec_encoders import PytorchSeq2VecWrapper
-from allennlp.modules.token_embedders import ElmoTokenEmbedder
 
 
 class HierarchicalJointModel(nn.Module):
