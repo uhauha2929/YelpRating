@@ -6,6 +6,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 from allennlp.modules.seq2vec_encoders import PytorchSeq2VecWrapper
 from allennlp.modules.token_embedders import ElmoTokenEmbedder
 
@@ -27,6 +28,8 @@ class HierarchicalJointModelELMo(nn.Module):
         self.label_size = label_size
         self.dropout = dropout
         self.user_feats_dim = user_feats_dim
+
+        self.padding_id = ELMoCharacterMapper.padding_character + 1
 
         self.embedding = ElmoTokenEmbedder(options_file, weight_file)
 
@@ -60,7 +63,7 @@ class HierarchicalJointModelELMo(nn.Module):
         )
 
         if self.user_feats_dim > 0:
-            self.user_feats_weights = nn.Parameter(torch.ones(self.user_feats_dim), requires_grad=True)
+            self.user_feats_weights = nn.Parameter(torch.ones(self.user_feats_dim))
 
     def forward(self,
                 inputs: torch.Tensor,
@@ -69,11 +72,11 @@ class HierarchicalJointModelELMo(nn.Module):
         p_list = []
         for i, p in enumerate(inputs):
             # [10, 20, 30, 50]
-            r_mask = p.sum(-1).sum(-1) != 0
+            r_mask = (p - self.padding_id).sum(-1).sum(-1) != 0
             r_list = []
             for j, r in enumerate(p):
                 # [20, 30, 50]
-                s_mask = r.sum(-1) != 0
+                s_mask = (r - self.padding_id).sum(-1) != 0
                 s_embedded = self.embedding(r)
                 # [20, 30, E]
                 r_hn = self.sentence_rnn(s_embedded, s_mask)

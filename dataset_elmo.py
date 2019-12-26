@@ -5,12 +5,13 @@ import json
 import torch
 import torch.nn.functional as F
 from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
+from allennlp.modules.token_embedders import ElmoTokenEmbedder
 from torch.utils.data import Dataset
 
 from build_vocab import Vocabulary, UNKNOWN_CHAR, PADDING_CHAR
 
 
-class ProductUserDatasetChar(Dataset):
+class ProductUserDatasetELMo(Dataset):
     def __init__(self,
                  vocab: Vocabulary,
                  products_path: str,
@@ -18,18 +19,14 @@ class ProductUserDatasetChar(Dataset):
                  user_feats_path: str,
                  num_reviews: int = 10,
                  num_sentences: int = 20,
-                 max_sequence_length: int = 30,
-                 max_word_length: int = 50,
-                 max_char_size: int = 80):
+                 max_sequence_length: int = 30):
 
         self.num_reviews = num_reviews
         self.num_sentences = num_sentences
         self.max_sequence_length = max_sequence_length
-        self.max_word_length = max_word_length
 
         self.vocab = vocab
-        self.char_index = vocab.get_char_index(max_char_size)
-        self.char_size = len(self.char_index)
+        self.char_mapper = ELMoCharacterMapper()
 
         self.review_dict = {}
         with open(reviews_path, 'rt') as r:
@@ -49,8 +46,8 @@ class ProductUserDatasetChar(Dataset):
         product_tensor = torch.full([self.num_reviews,
                                      self.num_sentences,
                                      self.max_sequence_length,
-                                     self.max_word_length],
-                                    self.char_index[PADDING_CHAR],
+                                     self.char_mapper.max_word_length],
+                                    self.char_mapper.padding_character + 1,  # mapper中加了1
                                     dtype=torch.long)
         product = self.products[index]
         review_ids = product['review_ids']
@@ -73,9 +70,7 @@ class ProductUserDatasetChar(Dataset):
                 words = [token.text for token in tokens]
                 words = words[:self.max_sequence_length]
                 for k, word in enumerate(words):
-                    for l, char in enumerate(word[:self.max_word_length]):
-                        product_tensor[i, j, k, l] = self.char_index \
-                            .get(char, self.char_index[UNKNOWN_CHAR])  # unk
+                    product_tensor[i, j, k] = torch.LongTensor(self.char_mapper.convert_word_to_char_ids(word))
 
         user_features = torch.FloatTensor(user_features)
 
@@ -95,7 +90,8 @@ class ProductUserDatasetChar(Dataset):
 if __name__ == '__main__':
     vocab = Vocabulary()
     print(vocab.vocab_size)
-    dataset = ProductUserDatasetChar(vocab, './data/products.txt',
+    dataset = ProductUserDatasetELMo(vocab, './data/products.txt',
                                      './data/reviews_train.txt',
                                      './data/users_feats.json')
     output_dict = iter(dataset).__next__()
+    t = output_dict['product']

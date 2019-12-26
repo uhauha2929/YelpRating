@@ -6,19 +6,10 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from util import Config
+from config import conf
 from dataset import ProductUserDataset
 from models.hierarchical import HierarchicalJointModel
 from build_vocab import Vocabulary
-
-conf = Config(
-    embedding_size=200,
-
-    hidden_size=128,
-    learning_rate=1e-3,
-
-    batch_size=64,
-    epoch=50)
 
 DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
 

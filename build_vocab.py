@@ -41,7 +41,11 @@ class Vocabulary(object):
         self.vocab_size = len(self.word_index)
         self.index_word = {index: word for word, index in self.word_index.items()}
 
+    @DeprecationWarning
     def get_char_index(self, max_char_size: int = 100):
+        """
+        elmo use its own char index
+        """
         if self.word_index is None:
             raise Exception('vocab is empty!')
         char_counter = Counter()
@@ -71,18 +75,12 @@ class Vocabulary(object):
 
 
 # -----------------test----------------------
-# def test_build_vocab():
-#     vocab = Vocabulary(20000)
-#     texts = []
-#     with open('./data/reviews_train.txt', 'rt') as r:
-#         for line in r:
-#             review = json.loads(line)
-#             texts.append(review['text'])
-#     vocab.build_vocabulary(texts)
-#     print(vocab.vocab_size)
-
-
-def test_get_char_index():
-    vocab = Vocabulary()
+def test_build_vocab():
+    vocab = Vocabulary(20000)
+    texts = []
+    with open('./data/reviews_train.txt', 'rt') as r:
+        for line in r:
+            review = json.loads(line)
+            texts.append(review['text'])
+    vocab.build_vocabulary(texts)
     print(vocab.vocab_size)
-    print(len(vocab.get_char_index()))
