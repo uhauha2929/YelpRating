@@ -15,9 +15,7 @@ from allennlp.modules.token_embedders import PretrainedBertEmbedder
 from allennlp.nn.util import move_to_device
 from torch.utils.data import Dataset
 
-from config import conf_bert
-
-DEVICE = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
+from config import conf_bert, DEVICE
 
 
 class ProductUserDatasetBERT(Dataset):

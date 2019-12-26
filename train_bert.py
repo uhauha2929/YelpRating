@@ -6,12 +6,9 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from config import conf_bert
+from config import conf_bert, DEVICE
 from dataset_bert import ProductUserDatasetBERT
-from build_vocab import Vocabulary
 from models.hierarchical_bert import HierarchicalJointModelBERT
-
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 regress_criterion = nn.MSELoss().to(DEVICE)
 classify_criterion = nn.CrossEntropyLoss().to(DEVICE)

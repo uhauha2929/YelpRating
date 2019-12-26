@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2019/12/26 9:39
 # @Author  : uhauha2929
+import torch
+
+DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
 
 
 class Config(dict):
@@ -44,6 +47,6 @@ conf_bert = Config(
     hidden_size=128,
     learning_rate=1e-3,
 
-    batch_size=10,
+    batch_size=32,
     epoch=50
 )
