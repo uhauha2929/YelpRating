@@ -6,20 +6,19 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
+from util import Config
 from dataset import ProductUserDataset
 from models.hierarchical import HierarchicalJointModel
 from build_vocab import Vocabulary
 
-class Configuration(object):
+conf = Config(
+    embedding_size=200,
 
-    def __init__(self):
-        self.embedding_size = 200
-        self.hidden_size = 256
-        self.learning_rate = 1e-3
+    hidden_size=128,
+    learning_rate=1e-3,
 
-        self.batch_size = 64
-        self.epoch = 50
-
+    batch_size=64,
+    epoch=50)
 
 DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
 
@@ -89,7 +88,6 @@ def evaluate(model, val_loader):
 
 
 def main():
-    p = Configuration()
     vocab = Vocabulary()
     train_data = ProductUserDataset(vocab,
                                     'data/products_train.txt',
@@ -101,18 +99,18 @@ def main():
                                   'data/reviews_test.txt',
                                   'data/users_feats.json')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=p.batch_size)
-    val_loader = DataLoader(dataset=val_data, batch_size=p.batch_size)
+    train_loader = DataLoader(dataset=train_data, batch_size=conf.batch_size)
+    val_loader = DataLoader(dataset=val_data, batch_size=conf.batch_size)
 
     model = HierarchicalJointModel(vocab.vocab_size,
-                                   p.embedding_size,
-                                   p.hidden_size).to(DEVICE)
+                                   conf.embedding_size,
+                                   conf.hidden_size).to(DEVICE)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=p.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate)
 
     best_acc = -np.inf
 
-    for i in range(1, p.epoch + 1):
+    for i in range(1, conf.epoch + 1):
         train_loss = train(train_loader, model, optimizer)
         val_loss, metric = evaluate(model, val_loader)
 

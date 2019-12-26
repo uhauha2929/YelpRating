@@ -4,6 +4,7 @@
 import json
 import torch
 import torch.nn.functional as F
+from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 from torch.utils.data import Dataset
 
 from build_vocab import Vocabulary, UNKNOWN_CHAR, PADDING_CHAR
@@ -94,8 +95,7 @@ class ProductUserDatasetChar(Dataset):
 if __name__ == '__main__':
     vocab = Vocabulary()
     print(vocab.vocab_size)
-    dataset = ProductUserDataset(vocab, './data/products.txt',
-                                 './data/reviews_train.txt',
-                                 './data/users_feats.json')
+    dataset = ProductUserDatasetChar(vocab, './data/products.txt',
+                                     './data/reviews_train.txt',
+                                     './data/users_feats.json')
     output_dict = iter(dataset).__next__()
-    print(output_dict['product'].size())

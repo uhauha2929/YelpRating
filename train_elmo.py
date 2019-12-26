@@ -6,26 +6,22 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
+from util import Config
 from dataset_elmo import ProductUserDatasetChar
 from build_vocab import Vocabulary
 from models.hierarchical_elmo import HierarchicalJointModelELMo
 
+conf = Config(
+    options_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_options.json',
+    weight_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5',
 
-class Configuration(object):
+    hidden_size=128,
+    learning_rate=1e-3,
 
-    def __init__(self):
-        # ELMo
-        self.options_file = '/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_options.json'
-        self.weight_file = '/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5'
+    batch_size=64,
+    epoch=50)
 
-        self.hidden_size = 256
-        self.learning_rate = 1e-3
-
-        self.batch_size = 64
-        self.epoch = 50
-
-
-DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 regress_criterion = nn.MSELoss().to(DEVICE)
 classify_criterion = nn.CrossEntropyLoss().to(DEVICE)
@@ -93,7 +89,6 @@ def evaluate(model, val_loader):
 
 
 def main():
-    p = Configuration()
     vocab = Vocabulary()
     train_data = ProductUserDatasetChar(vocab,
                                         'data/products_train.txt',
@@ -105,18 +100,18 @@ def main():
                                       'data/reviews_test.txt',
                                       'data/users_feats.json')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=p.batch_size)
-    val_loader = DataLoader(dataset=val_data, batch_size=p.batch_size)
+    train_loader = DataLoader(dataset=train_data, batch_size=conf.batch_size)
+    val_loader = DataLoader(dataset=val_data, batch_size=conf.batch_size)
 
     model = HierarchicalJointModelELMo(vocab.vocab_size,
-                                       p.options_file, p.weight_file,
-                                       p.hidden_size).to(DEVICE)
+                                       conf.options_file, conf.weight_file,
+                                       conf.hidden_size).to(DEVICE)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=p.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate)
 
     best_acc = -np.inf
 
-    for i in range(1, p.epoch + 1):
+    for i in range(1, conf.epoch + 1):
         train_loss = train(train_loader, model, optimizer)
         val_loss, metric = evaluate(model, val_loader)
 
