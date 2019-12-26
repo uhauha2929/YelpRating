@@ -82,12 +82,12 @@ def main():
     vocab = Vocabulary()
     train_data = ProductUserDatasetELMo(vocab,
                                         'data/products_train.txt',
-                                        'data/reviews_train.txt',
+                                        'data/tokenized_reviews.txt',
                                         'data/users_feats.json')
 
     val_data = ProductUserDatasetELMo(vocab,
                                       'data/products_test.txt',
-                                      'data/reviews_test.txt',
+                                      'data/tokenized_reviews.txt',
                                       'data/users_feats.json')
 
     train_loader = DataLoader(dataset=train_data, batch_size=conf_elmo.batch_size)

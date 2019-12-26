@@ -20,7 +20,7 @@ class Config(dict):
 conf = Config(
     embedding_size=200,
 
-    hidden_size=128,
+    hidden_size=256,
     learning_rate=1e-3,
 
     batch_size=64,
@@ -31,7 +31,7 @@ conf_elmo = Config(
     options_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_options.json',
     weight_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5',
 
-    hidden_size=128,
+    hidden_size=256,
     learning_rate=1e-3,
 
     batch_size=64,
@@ -44,9 +44,9 @@ conf_bert = Config(
 
     bert_dim=768,
 
-    hidden_size=128,
+    hidden_size=256,
     learning_rate=1e-3,
 
-    batch_size=32,
+    batch_size=64,
     epoch=50
 )

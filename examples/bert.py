@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2019/12/26 13:37
 # @Author  : uhauha2929
+from allennlp.data.tokenizers import Token
 from allennlp.data import Instance, Vocabulary
+from allennlp.data.dataset import Batch
 from allennlp.data.fields import TextField
-from allennlp.data.iterators import BucketIterator
-from allennlp.data.token_indexers import PretrainedBertIndexer, SingleIdTokenIndexer
-from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
+from allennlp.data.token_indexers import PretrainedBertIndexer
 from allennlp.modules import TextFieldEmbedder
 from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
 from allennlp.modules.token_embedders import PretrainedBertEmbedder
@@ -24,13 +24,14 @@ bert_embedder = PretrainedBertEmbedder(
 word_embedder: TextFieldEmbedder = BasicTextFieldEmbedder({"tokens": bert_embedder},
                                                           allow_unmatched_keys=True)
 
-word_splitter = BertBasicWordSplitter()
+word_tokenizer = bert_indexer.wordpiece_tokenizer
 
 vocab = Vocabulary()
 
 
 def text_to_instance(text):
-    tokens = word_splitter.split_words(text)
+
+    tokens = [Token(word) for word in word_tokenizer(text.lower())]
     print(tokens)
 
     field = TextField(tokens, token_indexers)
@@ -42,13 +43,12 @@ def text_to_instance(text):
     return instance
 
 
-instances = [text_to_instance('Nice to meet you!'), text_to_instance('Hello Word!')]
+instances = [text_to_instance('Nice to meet you!'), text_to_instance('Hello World!')]
 
 print(instances[0].fields['tokens'])
-print(instances[0].as_tensor_dict())
 
-iterator = BucketIterator(batch_size=2, sorting_keys=[("tokens", "num_tokens")])
-batch = iter(iterator(instances)).__next__()
+batch = Batch(instances).as_tensor_dict()
+
 print(batch)
 
 embeddings = word_embedder.forward(batch['tokens'])

@@ -3,10 +3,9 @@
 # @Author  : uhauha2929
 import json
 import torch
-import torch.nn.functional as F
-from allennlp.data import Instance, Vocabulary
+from allennlp.data import Instance, Vocabulary, Token
+from allennlp.data.dataset import Batch
 from allennlp.data.fields import TextField
-from allennlp.data.iterators import BucketIterator
 from allennlp.data.token_indexers import PretrainedBertIndexer
 from allennlp.data.tokenizers.word_splitter import BertBasicWordSplitter
 from allennlp.modules import TextFieldEmbedder
@@ -33,9 +32,8 @@ class ProductUserDatasetBERT(Dataset):
 
         self.vocab = Vocabulary()
 
-        self.word_splitter = BertBasicWordSplitter()
-
         self.bert_indexer = PretrainedBertIndexer(pretrained_model=conf_bert.bert_vocab)
+        self.word_tokenizer = self.bert_indexer.wordpiece_tokenizer
         self.token_indexers = {'tokens': self.bert_indexer}
 
         self.bert_embedder = PretrainedBertEmbedder(
@@ -62,7 +60,7 @@ class ProductUserDatasetBERT(Dataset):
             self._user_feats = json.load(u)
 
     def text_to_instance(self, text):
-        tokens = self.word_splitter.split_words(text)
+        tokens = [Token(word) for word in self.word_tokenizer(text.lower())]  # lowercase
 
         field = TextField(tokens, self.token_indexers)
         field.index(self.vocab)
@@ -76,7 +74,7 @@ class ProductUserDatasetBERT(Dataset):
     def __getitem__(self, index):
         product_tensor = torch.zeros([self.num_reviews,
                                       self.num_sentences,
-                                      768])  # float类型
+                                      conf_bert.bert_dim])  # float类型
         product = self.products[index]
         review_ids = product['review_ids']
 
@@ -92,14 +90,15 @@ class ProductUserDatasetBERT(Dataset):
             text = review['text']
             sentences = text.split("\n")
             sentences = sentences[:self.num_sentences]
-
+            if len(sentences) == 0:
+                print('aasssss')
             instances = []
             for sentence in sentences:
-                instance = self.text_to_instance(sentence)
-                instances.append(instance)
-
-            iterator = BucketIterator(batch_size=len(instances), sorting_keys=[("tokens", "num_tokens")])
-            batch = iter(iterator(instances)).__next__()
+                if len(sentence) > 0:  # IndexError: list index out of range
+                    instance = self.text_to_instance(sentence)
+                    instances.append(instance)
+            batch = Batch(instances).as_tensor_dict(
+                padding_lengths={'tokens': {'num_tokens': self.max_sequence_length}})
             batch['tokens'] = move_to_device(batch['tokens'], DEVICE.index)  # gpu
             embeddings = self.word_embedder.forward(batch['tokens'])
             product_tensor[i, :len(instances)] = embeddings[:, 0]
@@ -121,11 +120,10 @@ class ProductUserDatasetBERT(Dataset):
 
 if __name__ == '__main__':
     dataset = ProductUserDatasetBERT('./data/products.txt',
-                                     './data/reviews_train.txt',
+                                     './data/tokenized_reviews.txt',
                                      './data/users_feats.json')
 
-    # output_dict = iter(dataset).__next__()
-    for output_dict in dataset:
+    output_dict = iter(dataset).__next__()
+    for i, output_dict in enumerate(dataset):
         t = output_dict['product']
-        print(t.size())
-        print(t[0, 0])
+        print(i, t.size())

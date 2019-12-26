@@ -77,11 +77,11 @@ def evaluate(model, val_loader):
 
 def main():
     train_data = ProductUserDatasetBERT('data/products_train.txt',
-                                        'data/reviews_train.txt',
+                                        'data/tokenized_reviews.txt',
                                         'data/users_feats.json')
 
     val_data = ProductUserDatasetBERT('data/products_test.txt',
-                                      'data/reviews_test.txt',
+                                      'data/tokenized_reviews.txt',
                                       'data/users_feats.json')
 
     train_loader = DataLoader(dataset=train_data, batch_size=conf_bert.batch_size)
