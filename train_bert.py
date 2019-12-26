@@ -6,12 +6,12 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from config import conf
-from dataset import ProductUserDataset
-from models.hierarchical import HierarchicalJointModel
+from config import conf_bert
+from dataset_bert import ProductUserDatasetBERT
 from build_vocab import Vocabulary
+from models.hierarchical_bert import HierarchicalJointModelBERT
 
-DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 regress_criterion = nn.MSELoss().to(DEVICE)
 classify_criterion = nn.CrossEntropyLoss().to(DEVICE)
@@ -79,29 +79,24 @@ def evaluate(model, val_loader):
 
 
 def main():
-    vocab = Vocabulary()
-    train_data = ProductUserDataset(vocab,
-                                    'data/products_train.txt',
-                                    'data/reviews_train.txt',
-                                    'data/users_feats.json')
+    train_data = ProductUserDatasetBERT('data/products_train.txt',
+                                        'data/reviews_train.txt',
+                                        'data/users_feats.json')
 
-    val_data = ProductUserDataset(vocab,
-                                  'data/products_test.txt',
-                                  'data/reviews_test.txt',
-                                  'data/users_feats.json')
+    val_data = ProductUserDatasetBERT('data/products_test.txt',
+                                      'data/reviews_test.txt',
+                                      'data/users_feats.json')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=conf.batch_size)
-    val_loader = DataLoader(dataset=val_data, batch_size=conf.batch_size)
+    train_loader = DataLoader(dataset=train_data, batch_size=conf_bert.batch_size)
+    val_loader = DataLoader(dataset=val_data, batch_size=conf_bert.batch_size)
 
-    model = HierarchicalJointModel(vocab.vocab_size,
-                                   conf.embedding_size,
-                                   conf.hidden_size).to(DEVICE)
+    model = HierarchicalJointModelBERT(conf_bert.hidden_size).to(DEVICE)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=conf.learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf_bert.learning_rate)
 
     best_acc = -np.inf
 
-    for i in range(1, conf.epoch + 1):
+    for i in range(1, conf_bert.epoch + 1):
         train_loss = train(train_loader, model, optimizer)
         val_loss, metric = evaluate(model, val_loader)
 
@@ -111,7 +106,7 @@ def main():
 
         if metric['acc'] > best_acc:
             best_acc = metric['acc']
-            torch.save(model.state_dict(), 'basic.pt')
+            torch.save(model.state_dict(), 'bert.pt')
 
 
 if __name__ == '__main__':

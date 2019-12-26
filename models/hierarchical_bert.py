@@ -6,37 +6,27 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 from allennlp.modules.seq2vec_encoders import PytorchSeq2VecWrapper
-from allennlp.modules.token_embedders import ElmoTokenEmbedder
 
 
-class HierarchicalJointModelELMo(nn.Module):
+class HierarchicalJointModelBERT(nn.Module):
 
     def __init__(self,
-                 options_file: str,
-                 weight_file: str,
                  hidden_size: int,
+                 bert_dim: int = 768,
                  label_size: int = 9,
                  dropout: float = 0.2,
                  user_feats_dim: int = 20):
         super().__init__()
 
         self.hidden_size = hidden_size
+        self.bert_dim = bert_dim
+
         self.label_size = label_size
         self.dropout = dropout
         self.user_feats_dim = user_feats_dim
 
-        self.padding_id = ELMoCharacterMapper.padding_character + 1
-
-        self.embedding = ElmoTokenEmbedder(options_file, weight_file)
-
-        self.sentence_rnn = PytorchSeq2VecWrapper(nn.GRU(self.embedding.get_output_dim(),
-                                                         hidden_size,
-                                                         batch_first=True,
-                                                         bidirectional=True))
-
-        self.review_rnn = PytorchSeq2VecWrapper(nn.GRU(hidden_size * 2,
+        self.review_rnn = PytorchSeq2VecWrapper(nn.GRU(self.bert_dim,
                                                        hidden_size,
                                                        batch_first=True,
                                                        bidirectional=True))
@@ -66,24 +56,12 @@ class HierarchicalJointModelELMo(nn.Module):
     def forward(self,
                 inputs: torch.Tensor,
                 user_feats: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        # [B, 10, 20, 30, 50]
+        # [B, 10, 20, E]
         p_list = []
         for i, p in enumerate(inputs):
-            # [10, 20, 30, 50]
-            r_mask = (p - self.padding_id).sum(-1).sum(-1) != 0
-            r_list = []
-            for j, r in enumerate(p):
-                # [20, 30, 50]
-                s_mask = (r - self.padding_id).sum(-1) != 0
-                s_embedded = self.embedding(r)
-                # [20, 30, E]
-                r_hn = self.sentence_rnn(s_embedded, s_mask)
-                # [20, H] -> [1, 20, H]
-                r_list.append(r_hn.unsqueeze(0))
-
-            r_batch = torch.cat(r_list, dim=0)
-            # [10, 20, H]
-            p_hn = self.review_rnn(r_batch, r_mask)
+            # [10, 20, E]
+            r_mask = p.sum(-1) != 0
+            p_hn = self.review_rnn(p, r_mask)
             # [10, H] -> [1, 10, H]
             p_list.append(p_hn.unsqueeze(0))
 

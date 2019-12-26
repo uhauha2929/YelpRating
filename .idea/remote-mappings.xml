@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteMappingsManager">
+    <list>
+      <list>
+        <remote-mappings server-id="python@6a3109aa-a056-4d62-a3f1-6ee5e0848250" />
+        <remote-mappings server-id="python@sftp://yzhao@192.168.126.181:22/home/yzhao/miniconda3/envs/TF/bin/python">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/yzhao/workspace/YelpRating" />
+            </list>
+          </settings>
+        </remote-mappings>
+        <remote-mappings server-id="python@sftp://yzhao@192.168.126.157:22/home/yzhao/conda/envs/torch/bin/python">
+          <settings>
+            <list>
+              <mapping local-root="$PROJECT_DIR$" remote-root="/home/yzhao/workspace/YelpRating" />
+            </list>
+          </settings>
+        </remote-mappings>
+      </list>
+    </list>
+  </component>
+</project>

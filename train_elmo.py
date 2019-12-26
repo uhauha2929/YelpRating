@@ -111,7 +111,7 @@ def main():
 
         if metric['acc'] > best_acc:
             best_acc = metric['acc']
-            torch.save(model.state_dict(), 'best.pt')
+            torch.save(model.state_dict(), 'elmo.pt')
 
 
 if __name__ == '__main__':
