@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 # @Time    : 2019/12/26 13:37
 # @Author  : uhauha2929
-from allennlp.data.tokenizers import Token
+from allennlp.data.tokenizers import Token, WordTokenizer
 from allennlp.data import Instance, Vocabulary
 from allennlp.data.dataset import Batch
 from allennlp.data.fields import TextField
@@ -25,12 +25,10 @@ word_embedder: TextFieldEmbedder = BasicTextFieldEmbedder({"tokens": bert_embedd
                                                           allow_unmatched_keys=True)
 
 word_tokenizer = bert_indexer.wordpiece_tokenizer
-
 vocab = Vocabulary()
 
 
 def text_to_instance(text):
-
     tokens = [Token(word) for word in word_tokenizer(text.lower())]
     print(tokens)
 
@@ -47,10 +45,12 @@ instances = [text_to_instance('Nice to meet you!'), text_to_instance('Hello Worl
 
 print(instances[0].fields['tokens'])
 
-batch = Batch(instances).as_tensor_dict()
+batch = Batch(instances)
+print(batch.get_padding_lengths())
 
-print(batch)
+batch_tensor = batch.as_tensor_dict(padding_lengths={'tokens': {'tokens_length': 10}})
+print(batch_tensor)
 
-embeddings = word_embedder.forward(batch['tokens'])
+embeddings = word_embedder.forward(batch_tensor['tokens'])
 print(embeddings.size())
 print(embeddings[:, 0])

@@ -9,7 +9,7 @@ import torch.nn as nn
 from config import conf
 from dataset import ProductUserDataset
 from models.hierarchical import HierarchicalJointModel
-from build_vocab import Vocabulary
+from build_vocab_embedding import Vocabulary
 
 DEVICE = torch.device('cuda:7' if torch.cuda.is_available() else 'cpu')
 

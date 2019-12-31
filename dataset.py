@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset
 
-from build_vocab import Vocabulary, UNKNOWN, PADDING
+from build_vocab_embedding import Vocabulary, UNKNOWN, PADDING
 
 
 class ProductUserDataset(Dataset):
@@ -87,6 +87,6 @@ if __name__ == '__main__':
     vocab = Vocabulary()
     print(vocab.vocab_size)
     dataset = ProductUserDataset(vocab, './data/products.txt',
-                                 './data/reviews_train.txt',
+                                 './data/tokenized_reviews.txt',
                                  './data/users_feats.json')
     print(iter(dataset).__next__())

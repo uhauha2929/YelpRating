@@ -8,11 +8,12 @@ from tqdm import tqdm
 import torch
 import torch.nn as nn
 
-from config import conf_bert, DEVICE
-from dataset_bert import ProductUserDatasetBERT
-from models.hierarchical_bert import HierarchicalJointModelBERT
+from build_vocab_embedding import Vocabulary
+from config import conf_glove_bert, DEVICE
+from dataset_glove_bert import ProductUserDatasetGloVeBERT
+from models.hierarchical_glove_bert import HierarchicalJointModelGloVeBERT
 
-log_dir = 'log_bert'
+log_dir = 'log_glove_bert'
 Path(log_dir).mkdir(parents=True, exist_ok=True)
 
 regress_criterion = nn.MSELoss().to(DEVICE)
@@ -26,14 +27,14 @@ def train(train_loader, model, optimizer):
     bar = tqdm(total=len(train_loader))
     for b_id, output_dict in enumerate(train_loader, 1):
         product = output_dict['product'].to(DEVICE)
+        product_bert = output_dict['product_bert'].to(DEVICE)
         product_star = output_dict['product_star'].to(DEVICE)
         review_stars = output_dict['review_stars'].to(DEVICE)
         user_features = output_dict['user_features'].to(DEVICE)
 
         optimizer.zero_grad()
-        p_stars, r_stars = model(product, user_features)
+        p_stars, r_stars = model(product, product_bert, user_features)
         p_loss = classify_criterion(p_stars, product_star)
-
         r_loss = regress_criterion(r_stars, review_stars)
         loss = p_loss + r_loss
         loss.backward()
@@ -60,13 +61,13 @@ def evaluate(model, val_loader):
     with torch.no_grad():
         for i, output_dict in enumerate(tqdm(val_loader)):
             product = output_dict['product'].to(DEVICE)
+            product_bert = output_dict['product_bert'].to(DEVICE)
             product_star = output_dict['product_star'].to(DEVICE)
             review_stars = output_dict['review_stars'].to(DEVICE)
             user_features = output_dict['user_features'].to(DEVICE)
 
-            p_stars, r_stars = model(product, user_features)
+            p_stars, r_stars = model(product, product_bert, user_features)
             p_loss = classify_criterion(p_stars, product_star)
-
             r_loss = regress_criterion(r_stars, review_stars)
             loss = p_loss + r_loss
 
@@ -86,33 +87,36 @@ def evaluate(model, val_loader):
 
 
 def main():
-    train_data = ProductUserDatasetBERT('data/products_train.txt',
-                                        'data/tokenized_reviews.txt',
-                                        'data/users_feats.json')
+    vocab = Vocabulary()
+    train_data = ProductUserDatasetGloVeBERT(vocab, 'data/products_train.txt',
+                                             'data/tokenized_reviews.txt',
+                                             'data/users_feats.json')
 
-    val_data = ProductUserDatasetBERT('data/products_test.txt',
-                                      'data/tokenized_reviews.txt',
-                                      'data/users_feats.json')
+    val_data = ProductUserDatasetGloVeBERT(vocab, 'data/products_test.txt',
+                                           'data/tokenized_reviews.txt',
+                                           'data/users_feats.json')
 
-    train_loader = DataLoader(dataset=train_data, batch_size=conf_bert.batch_size)
-    val_loader = DataLoader(dataset=val_data, batch_size=conf_bert.batch_size)
+    train_loader = DataLoader(dataset=train_data, batch_size=conf_glove_bert.batch_size)
+    val_loader = DataLoader(dataset=val_data, batch_size=conf_glove_bert.batch_size)
 
-    model = HierarchicalJointModelBERT(conf_bert.hidden_size).to(DEVICE)
-
-    optimizer = torch.optim.Adam(model.parameters(), lr=conf_bert.learning_rate)
+    model = HierarchicalJointModelGloVeBERT(vocab.vocab_size,
+                                            conf_glove_bert.embedding_size,
+                                            conf_glove_bert.hidden_size).to(DEVICE)
+    model.load_word_embedding('./word_embedding_200.npy')
+    optimizer = torch.optim.Adam(model.parameters(), lr=conf_glove_bert.learning_rate)
 
     best_acc = -np.inf
 
-    for i in range(1, conf_bert.epoch + 1):
+    for i in range(1, conf_glove_bert.epoch + 1):
         train_losses_dict = train(train_loader, model, optimizer)
         metric = evaluate(model, val_loader)
 
-        np.save('{}/bert-epoch-{:02}-loss'.format(log_dir, i), train_losses_dict)
+        np.save('{}/glove-bert-epoch-{:02}-loss'.format(log_dir, i), train_losses_dict)
         print('epoch:{}'.format(i), metric)
 
         if metric['accuracy'] > best_acc:
             best_acc = metric['accuracy']
-            torch.save(model.state_dict(), '{}/bert.pt'.format(log_dir))
+            torch.save(model.state_dict(), '{}/glove_bert.pt'.format(log_dir))
 
 
 if __name__ == '__main__':

@@ -8,7 +8,7 @@ from allennlp.data.token_indexers.elmo_indexer import ELMoCharacterMapper
 from allennlp.modules.token_embedders import ElmoTokenEmbedder
 from torch.utils.data import Dataset
 
-from build_vocab import Vocabulary, UNKNOWN_CHAR, PADDING_CHAR
+from build_vocab_embedding import Vocabulary, UNKNOWN_CHAR, PADDING_CHAR
 
 
 class ProductUserDatasetELMo(Dataset):
@@ -90,8 +90,8 @@ class ProductUserDatasetELMo(Dataset):
 if __name__ == '__main__':
     vocab = Vocabulary()
     print(vocab.vocab_size)
-    dataset = ProductUserDatasetELMo(vocab, './data/products.txt',
-                                     './data/reviews_train.txt',
+    dataset = ProductUserDatasetELMo(vocab, './data/products_train.txt',
+                                     './data/tokenized_reviews.txt',
                                      './data/users_feats.json')
     output_dict = iter(dataset).__next__()
     t = output_dict['product']
