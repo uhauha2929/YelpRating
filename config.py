@@ -75,3 +75,16 @@ conf_dan = Config(
     batch_size=64,
     epoch=50
 )
+
+conf_bert_dan = Config(
+    bert_vocab='/home/yzhao/data/bert/bert-base-uncased/vocab.txt',
+    bert_dir="/home/yzhao/data/bert/bert-base-uncased/bert-base-uncased.tar.gz",
+
+    bert_dim=768,
+
+    hidden_size=128,
+    learning_rate=1e-3,
+
+    batch_size=64,
+    epoch=50
+)
