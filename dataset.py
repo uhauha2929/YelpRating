@@ -3,10 +3,77 @@
 # @Author  : uhauha2929
 import json
 import torch
-import torch.nn.functional as F
 from torch.utils.data import Dataset
 
 from build_vocab_embedding import Vocabulary, UNKNOWN, PADDING
+
+
+def collate_fn(data):
+    def merge(sequences):
+        length = torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
+        padded_seqs = torch.zeros(len(sequences), max(length), dtype=torch.long)
+        for i, seq in enumerate(sequences):
+            end = length[i]
+            padded_seqs[i, :end] = seq[:end]
+        return padded_seqs, length
+
+    # sort a list by sequence length (descending order) to use pack_padded_sequence
+    data.sort(key=lambda x: len(x[0]), reverse=True)
+
+    seqs, stars = zip(*data)
+    # merge sequences (from tuple of 1D tensor to 2D tensor)
+    seqs, length = merge(seqs)
+    stars = torch.LongTensor(stars).squeeze()
+    return seqs, length, stars
+
+
+class ProductDataset(Dataset):
+
+    def __init__(self,
+                 vocab: Vocabulary,
+                 products_path: str,
+                 reviews_path: str,
+                 max_length: 200):
+
+        self._max_length = max_length
+        self.vocab = vocab
+
+        reviews = {}
+        with open(reviews_path, 'rt') as r:
+            for line in r:
+                review = json.loads(line)
+                reviews[review['review_id']] = review
+        self._reviews = reviews
+
+        products = []
+        with open(products_path, 'rt') as p:
+            for line in p:
+                products.append(json.loads(line))
+        self._products = products
+
+    def __len__(self):
+        return len(self._products)
+
+    def __getitem__(self, index):
+        product = self._products[index]
+        review_ids = product['review_ids']
+
+        word_id_list = []
+        for r_id in review_ids:
+            review = self._reviews[r_id]
+            for word in review['text'].split():
+                word = word.lower()
+                if word in self.vocab.word_index:
+                    if len(word_id_list) == self._max_length:
+                        break
+                    word_id_list.append(self.vocab.word_index[word])
+
+            if len(word_id_list) == self._max_length:
+                break
+
+        product_stars = torch.tensor(int((product['stars'] - 1) / 0.5), dtype=torch.long)
+
+        return torch.LongTensor(word_id_list), product_stars
 
 
 class ProductUserDataset(Dataset):
