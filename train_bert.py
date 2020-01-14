@@ -85,21 +85,32 @@ def evaluate(model, val_loader):
     return metric
 
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+
 def main():
-    train_data = ProductUserDatasetBERT('data/products_train.txt',
+    train_data = ProductUserDatasetBERT(conf_bert, 'data/products_train.txt',
                                         'data/tokenized_reviews.txt',
                                         'data/users_feats.json')
 
-    val_data = ProductUserDatasetBERT('data/products_test.txt',
+    val_data = ProductUserDatasetBERT(conf_bert, 'data/products_test.txt',
                                       'data/tokenized_reviews.txt',
                                       'data/users_feats.json')
 
     train_loader = DataLoader(dataset=train_data, batch_size=conf_bert.batch_size)
     val_loader = DataLoader(dataset=val_data, batch_size=conf_bert.batch_size)
 
-    model = HierarchicalJointModelBERT(conf_bert.hidden_size).to(DEVICE)
+    model = HierarchicalJointModelBERT(conf_bert).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=conf_bert.learning_rate)
+
+    # freeze bert weights
+    for name, param in model.named_parameters():
+        if name.startswith('bert'):
+            param.requires_grad = False
+
+    print(f'The model has {count_parameters(model):,} trainable parameters')
 
     best_acc = -np.inf
 

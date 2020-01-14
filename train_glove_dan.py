@@ -34,14 +34,13 @@ def train(train_loader, model, optimizer):
         optimizer.zero_grad()
         p_stars, r_stars = model(product, user_features)
         p_loss = classify_criterion(p_stars, product_star)
-        # r_loss = regress_criterion(r_stars, review_stars)
-        # loss = p_loss + r_loss
-        loss = p_loss
+        r_loss = regress_criterion(r_stars, review_stars)
+        loss = p_loss + r_loss
         loss.backward()
         optimizer.step()
 
         p_loss_sum += p_loss.item()
-        # r_loss_sum += r_loss.item()
+        r_loss_sum += r_loss.item()
         total_loss_sum += loss.item()
         bar.update()
         bar.set_description('total_loss:{:.4f}|p_loss:{:.4f}|r_loss:{:.4f}'
@@ -110,12 +109,12 @@ def main():
         train_losses_dict = train(train_loader, model, optimizer)
         metric = evaluate(model, val_loader)
 
-        # np.save('{}/glove-dan-epoch-{:02}-loss'.format(log_dir, i), train_losses_dict)
+        np.save('{}/glove-dan-epoch-{:02}-loss'.format(log_dir, i), train_losses_dict)
         print(metric)
 
         if metric['accuracy'] > best_acc:
             best_acc = metric['accuracy']
-            # torch.save(model.state_dict(), '{}/glove_dan.pt'.format(log_dir))
+            torch.save(model.state_dict(), '{}/glove_dan.pt'.format(log_dir))
 
 
 if __name__ == '__main__':

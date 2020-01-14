@@ -2,49 +2,30 @@
 # @Time    : 2019/4/16 19:33
 # @Author  : uhauha2929
 import json
-from typing import List
 
 import torch
-from allennlp.data import Instance, Vocabulary
-from allennlp.data.dataset import Batch
-from allennlp.data.token_indexers import PretrainedBertIndexer
-from allennlp.modules import TextFieldEmbedder
-from allennlp.modules.text_field_embedders import BasicTextFieldEmbedder
-from allennlp.modules.token_embedders import PretrainedBertEmbedder
-from allennlp.nn.util import move_to_device
 from torch.utils.data import Dataset
 
-from allenlp_util import text_to_instance
-from config import conf_bert, DEVICE
+import transformers as pt
+
+from config import Config, conf_bert
 
 
 class ProductUserDatasetBERT(Dataset):
     def __init__(self,
+                 config: Config,
                  products_path: str,
                  reviews_path: str,
                  user_feats_path: str,
                  num_reviews: int = 10,
                  num_sentences: int = 20,
-                 max_sequence_length: int = 50):
+                 max_sequence_length: int = 30):
+
+        self.bert_config = config
 
         self.num_reviews = num_reviews
         self.num_sentences = num_sentences
         self.max_sequence_length = max_sequence_length
-
-        self.vocab = Vocabulary()
-
-        self.bert_indexer = PretrainedBertIndexer(pretrained_model=conf_bert.bert_vocab)
-        self.word_tokenizer = self.bert_indexer.wordpiece_tokenizer
-        self.token_indexers = {'tokens': self.bert_indexer}
-
-        self.bert_embedder = PretrainedBertEmbedder(
-            pretrained_model=conf_bert.bert_dir,
-            top_layer_only=True,
-        ).to(DEVICE)  # gpu
-
-        self.word_embedder: TextFieldEmbedder = \
-            BasicTextFieldEmbedder({"tokens": self.bert_embedder},
-                                   allow_unmatched_keys=True)
 
         self.review_dict = {}
         with open(reviews_path, 'rt') as r:
@@ -60,11 +41,13 @@ class ProductUserDatasetBERT(Dataset):
         with open(user_feats_path, 'rt') as u:
             self._user_feats = json.load(u)
 
+        self.tokenizer = pt.BertTokenizer.from_pretrained(self.bert_config.pretrained_data_dir)
+
     def __getitem__(self, index):
         product_tensor = torch.zeros([self.num_reviews,
                                       self.num_sentences,
-                                      self.max_sequence_length,
-                                      conf_bert.bert_dim])  # float类型
+                                      self.max_sequence_length],
+                                     dtype=torch.long)  # long
 
         product = self.products[index]
         review_ids = product['review_ids']
@@ -82,20 +65,9 @@ class ProductUserDatasetBERT(Dataset):
             sentences = text.split("\n")
             sentences = sentences[:self.num_sentences]
 
-            instances: List[Instance] = []
-            for sentence in sentences:
-                if len(sentence) > 0:  # IndexError: list index out of range
-                    instance: Instance = text_to_instance(sentence,
-                                                          self.word_tokenizer,
-                                                          self.token_indexers)
-                    instance.index_fields(self.vocab)
-                    instances.append(instance)
-
-            batch = Batch(instances).as_tensor_dict(
-                padding_lengths={'tokens': {'tokens_length': self.max_sequence_length}})
-
-            batch['tokens'] = move_to_device(batch['tokens'], DEVICE.index)  # gpu
-            product_tensor[i, :len(instances)] = self.word_embedder.forward(batch['tokens'])
+            for j, sentence in enumerate(sentences):
+                token_ids = self.tokenizer.encode(sentence)[:self.max_sequence_length]
+                product_tensor[i, j, :len(token_ids)] = torch.LongTensor(token_ids)
 
         user_features = torch.FloatTensor(user_features)
 
@@ -113,11 +85,12 @@ class ProductUserDatasetBERT(Dataset):
 
 
 if __name__ == '__main__':
-    dataset = ProductUserDatasetBERT('./data/products_train.txt',
+    dataset = ProductUserDatasetBERT(conf_bert, './data/products_train.txt',
                                      './data/tokenized_reviews.txt',
                                      './data/users_feats.json')
 
     output_dict = iter(dataset).__next__()
-    for i, output_dict in enumerate(dataset):
-        t = output_dict['product']
-        print(i, t.size())
+    print(output_dict['product'])
+    # for i, output_dict in enumerate(dataset):
+    #     t = output_dict['product']
+    #     print(i, t.size())

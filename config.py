@@ -3,7 +3,7 @@
 # @Author  : uhauha2929
 import torch
 
-DEVICE = torch.device('cuda:5' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device('cuda:3' if torch.cuda.is_available() else 'cpu')
 
 
 class Config(dict):
@@ -27,39 +27,14 @@ conf = Config(
     epoch=50
 )
 
-conf_elmo = Config(
-    options_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_options.json',
-    weight_file='/home/yzhao/data/elmo/elmo_2x1024_128_2048cnn_1xhighway_weights.hdf5',
-
-    hidden_size=128,
-    learning_rate=1e-3,
-
-    batch_size=64,
-    epoch=50
-)
-
 conf_bert = Config(
-    bert_vocab='/home/yzhao/data/bert/bert-base-uncased/vocab.txt',
-    bert_dir="/home/yzhao/data/bert/bert-base-uncased/bert-base-uncased.tar.gz",
+    pretrained_data_dir='/home/yzhao/data/bert/bert-base-uncased',
 
-    bert_dim=768,
+    hidden_dim=128,
+    output_dim=9,
+    dropout=0.2,
+    user_feats_dim=20,
 
-    hidden_size=128,
-    learning_rate=1e-3,
-
-    batch_size=64,
-    epoch=50
-)
-
-conf_glove_bert = Config(
-    bert_vocab='/home/yzhao/data/bert/bert-base-uncased/vocab.txt',
-    bert_dir="/home/yzhao/data/bert/bert-base-uncased/bert-base-uncased.tar.gz",
-
-    bert_dim=768,
-
-    embedding_size=200,
-
-    hidden_size=128,
     learning_rate=1e-3,
 
     batch_size=64,
@@ -68,19 +43,6 @@ conf_glove_bert = Config(
 
 conf_dan = Config(
     embedding_size=200,
-
-    hidden_size=128,
-    learning_rate=1e-3,
-
-    batch_size=64,
-    epoch=50
-)
-
-conf_bert_dan = Config(
-    bert_vocab='/home/yzhao/data/bert/bert-base-uncased/vocab.txt',
-    bert_dir="/home/yzhao/data/bert/bert-base-uncased/bert-base-uncased.tar.gz",
-
-    bert_dim=768,
 
     hidden_size=128,
     learning_rate=1e-3,

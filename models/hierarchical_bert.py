@@ -2,59 +2,57 @@
 # @Time    : 2019/12/25 11:14
 # @Author  : uhauha2929
 from typing import Tuple
-
+import transformers as pt
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from allennlp.modules.seq2vec_encoders import PytorchSeq2VecWrapper, CnnEncoder
+from allennlp.modules.seq2vec_encoders import PytorchSeq2VecWrapper
+
+from config import Config
 
 
 class HierarchicalJointModelBERT(nn.Module):
 
-    def __init__(self,
-                 hidden_size: int,
-                 bert_dim: int = 768,
-                 label_size: int = 9,
-                 dropout: float = 0.2,
-                 user_feats_dim: int = 20):
+    def __init__(self, config: Config):
         super().__init__()
 
-        self.hidden_size = hidden_size
-        self.bert_dim = bert_dim
+        for k, v in vars(config).items():
+            setattr(self, k, v)
 
-        self.label_size = label_size
-        self.user_feats_dim = user_feats_dim
-        self.dropout = nn.Dropout(dropout)
+        self.bert = pt.BertModel.from_pretrained(self.pretrained_data_dir)
 
-        # self.sentence_rnn = PytorchSeq2VecWrapper(nn.GRU(bert_dim,
-        #                                                  hidden_size,
-        #                                                  batch_first=True,
-        #                                                  bidirectional=True))
-        self.projection = torch.nn.Linear(bert_dim, self.hidden_size)
-        self.sentence_cnn = CnnEncoder(self.hidden_size, num_filters=16)
+        self.embedding_dim = self.bert.config.to_dict()['hidden_size']
 
-        self.review_rnn = PytorchSeq2VecWrapper(nn.GRU(self.sentence_cnn.get_output_dim(),
-                                                       hidden_size,
+        self.dropout = nn.Dropout(self.dropout)
+
+        self.sentence_rnn = PytorchSeq2VecWrapper(nn.GRU(self.embedding_dim,
+                                                         self.hidden_dim,
+                                                         batch_first=True,
+                                                         bidirectional=True))
+
+        self.review_rnn = PytorchSeq2VecWrapper(nn.GRU(self.sentence_rnn.get_output_dim(),
+                                                       self.hidden_dim,
                                                        batch_first=True,
                                                        bidirectional=True))
 
-        self.product_rnn = nn.GRU(hidden_size * 2 + self.user_feats_dim,
-                                  hidden_size,
+        self.product_rnn = nn.GRU(self.hidden_dim * 2 + self.user_feats_dim,
+                                  self.hidden_dim,
                                   batch_first=True,
                                   bidirectional=True)
 
         self.review_feedforward = nn.Sequential(
-            nn.Linear(hidden_size * 2 + self.user_feats_dim, hidden_size // 2),
-            nn.ELU(),
+            nn.Linear(self.hidden_dim * 2 + self.user_feats_dim,
+                      self.hidden_dim // 2),
             self.dropout,
-            nn.Linear(hidden_size // 2, 1)
+            nn.ELU(),
+            nn.Linear(self.hidden_dim // 2, 1)
         )
 
         self.product_feedforward = nn.Sequential(
-            nn.Linear(hidden_size * 2, hidden_size // 2),
-            nn.ELU(),
+            nn.Linear(self.hidden_dim * 2, self.hidden_dim // 2),
             self.dropout,
-            nn.Linear(hidden_size // 2, self.label_size)
+            nn.ELU(),
+            nn.Linear(self.hidden_dim // 2, self.output_dim)
         )
 
         if self.user_feats_dim > 0:
@@ -64,17 +62,18 @@ class HierarchicalJointModelBERT(nn.Module):
                 inputs: torch.Tensor,
                 user_feats: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
 
-        inputs = self.dropout(self.projection(inputs))
-        # [B, 10, 20, 30, E]
+        # [B, 10, 20, 30]
         p_list = []
         for i, p in enumerate(inputs):
-            # [10, 20, 30, E]
-            r_mask = p.sum(-1).sum(-1) != 0
+            # [10, 20, 30]
+            r_mask = (p.sum(-1) != 0).float()
             r_list = []
             for j, r in enumerate(p):
+                # [20, 30]
+                s_mask = (r != 0).float()
+                embedded = self.bert(r, attention_mask=s_mask)[0]
                 # [20, 30, E]
-                s_mask = r.sum(-1) != 0
-                r_hn = self.sentence_cnn(r, s_mask)
+                r_hn = self.sentence_rnn(embedded, s_mask)
                 # [20, H] -> [1, 20, H]
                 r_list.append(r_hn.unsqueeze(0))
 
@@ -87,12 +86,12 @@ class HierarchicalJointModelBERT(nn.Module):
         p_batch = torch.cat(p_list, dim=0)
         # [B, 10, H]
         if self.user_feats_dim > 0:
-            p_batch = torch.cat([p_batch, F.normalize(user_feats) * self.user_feats_weights], -1)
+            p_batch = torch.cat([p_batch, user_feats * self.user_feats_weights], -1)
         # [B, 10, H+F]
         r_stars = self.review_feedforward(p_batch).squeeze()
         # [B, 10]
         _, h_n = self.product_rnn(p_batch)
-        h_n = torch.cat([h_n[:1, :, :], h_n[1:, :, :]], -1)
+        h_n = torch.cat([h_n[-2, :, :], h_n[-1, :, :]], -1)
         # [B, H]
         p_stars = self.product_feedforward(h_n.squeeze())
         # [B]
