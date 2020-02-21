@@ -109,8 +109,9 @@ def main():
         train_losses_dict = train(train_loader, model, optimizer)
         metric = evaluate(model, val_loader)
 
-        np.save('{}/glove-dan-epoch-{:02}-loss'.format(log_dir, i), train_losses_dict)
-        print(metric)
+        np.save('{}/loss_epoch-{:02}'.format(log_dir, i), train_losses_dict)
+        np.save('{}/metric-epoch-{:02}'.format(log_dir, i), metric)
+        print('epoch:{}'.format(i), metric)
 
         if metric['accuracy'] > best_acc:
             best_acc = metric['accuracy']
